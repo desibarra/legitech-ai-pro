@@ -2,11 +2,20 @@ import { VercelRequest, VercelResponse } from '@vercel/node';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import prisma from '../lib/prisma';
-import { allowCors } from '../lib/auth';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'secret';
 
-async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+    // CORS headers
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+    res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization');
+
+    if (req.method === 'OPTIONS') {
+        return res.status(200).end();
+    }
+
     if (req.method !== 'POST') {
         return res.status(405).json({ message: 'Method not allowed' });
     }
@@ -30,11 +39,9 @@ async function handler(req: VercelRequest, res: VercelResponse) {
 
         const token = jwt.sign({ userId: user.id, role: user.role }, JWT_SECRET, { expiresIn: '1d' });
 
-        res.json({ token, user: { id: user.id, email: user.email, name: user.name, role: user.role } });
+        return res.json({ token, user: { id: user.id, email: user.email, name: user.name, role: user.role } });
     } catch (error) {
         console.error('Login error:', error);
-        res.status(500).json({ message: 'Error logging in', error: String(error) });
+        return res.status(500).json({ message: 'Error logging in', error: String(error) });
     }
 }
-
-export default allowCors(handler);

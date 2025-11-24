@@ -57,57 +57,65 @@ FORMATO DE RESPUESTA OBLIGATORIO (Úsalo para consultas regulatorias):
  * Realizes a search for actual regulatory updates using Gemini's knowledge.
  */
 export const simulateNewLaw = async (industry: IndustryType): Promise<Law | null> => {
+  // Early return si no hay API key
+  if (!process.env.GOOGLE_API_KEY) {
+    console.error("GOOGLE_API_KEY no configurada");
+    return null;
+  }
+
   try {
     const model = genAI.getGenerativeModel({
       model: "gemini-1.5-flash",
       generationConfig: {
-        responseMimeType: "application/json",
+        temperature: 0.7,
+        topK: 40,
+        topP: 0.95,
       }
     });
 
-    const prompt = `Actúa como un Monitor Regulatorio en Tiempo Real para México. 
-    Busca en tu base de conocimiento una regulación, norma oficial mexicana (NOM) o reforma legal REAL y VIGENTE que sea crítica para la industria: "${industry}".
+    const prompt = `Como experto regulatorio mexicano, identifica una NOM o ley VIGENTE crítica para ${industry}.
     
-    No inventes datos. Usa regulaciones existentes (ej: NOMs de STPS, SEMARNAT, SCT, SAT).
-    Dame un caso específico que las empresas suelan olvidar o incumplir.
-    
-    Devuelve SOLO un objeto JSON válido sin markdown con la siguiente estructura:
-    {
-      "title": "Nombre oficial",
-      "description": "Descripción técnica",
-      "category": "Categoría",
-      "isoImpact": "Impacto ISO",
-      "impactLevel": "Alto|Medio|Bajo",
-      "aiSummary": "Resumen ejecutivo",
-      "actionSteps": ["paso1", "paso2"],
-      "estimatedFine": "Multa estimada",
-      "deadline": "Plazo crítico",
-      "complianceProgress": número
-    }`;
+REQUISITOS:
+- Norma REAL (NOM, Ley Federal, Reglamento)
+- Caso de incumplimiento común
+- Datos técnicos precisos
+- Multas en UMAS actuales
+
+RESPUESTA EN JSON:
+{
+  "title": "Nombre oficial",
+  "description": "Descripción técnica específica",
+  "category": "Ambiental|Seguridad|Fiscal|Operativa",
+  "impactLevel": "Alto|Medio|Bajo",
+  "aiSummary": "Resumen ejecutivo para gerentes",
+  "actionSteps": ["Paso 1 concreto", "Paso 2 concreto"],
+  "estimatedFine": "Ej: 500 a 5000 UMAS",
+  "deadline": "Ej: 30 días o fecha específica",
+  "complianceProgress": 25
+}`;
 
     const result = await model.generateContent(prompt);
-    const response = await result.response;
+    const response = result.response;
     const text = response.text();
 
     if (text) {
-      // Limpiar el texto en caso de que venga con backticks de JSON
-      const cleanText = text.replace(/```json\n?|\n?```/g, '').trim();
+      const cleanText = text.replace(/```json\s*|\s*```/g, '').trim();
       const data = JSON.parse(cleanText);
 
       return {
-        id: Math.random().toString(36).substring(2, 9),
-        title: data.title,
-        description: data.description,
+        id: `law_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+        title: data.title || `NOM para ${industry}`,
+        description: data.description || "Regulación específica del sector",
         category: data.category || "General",
-        isoImpact: data.isoImpact,
-        impactLevel: data.impactLevel,
+        isoImpact: data.isoImpact || "Por evaluar",
+        impactLevel: data.impactLevel || "Medio",
         status: 'Pendiente',
         dateAdded: new Date().toISOString(),
-        aiSummary: data.aiSummary,
-        actionSteps: data.actionSteps,
-        estimatedFine: data.estimatedFine,
-        deadline: data.deadline,
-        complianceProgress: data.complianceProgress || 15
+        aiSummary: data.aiSummary || "Análisis en proceso",
+        actionSteps: data.actionSteps || ["Diagnóstico inicial", "Evaluación de cumplimiento"],
+        estimatedFine: data.estimatedFine || "1000-5000 UMAS",
+        deadline: data.deadline || "60 días",
+        complianceProgress: data.complianceProgress || 20
       };
     }
     return null;
@@ -121,93 +129,121 @@ export const simulateNewLaw = async (industry: IndustryType): Promise<Law | null
  * Generates a deep dive analysis for a specific law using real regulatory knowledge.
  */
 export const analyzeSpecificLaw = async (lawTitle: string, industry: string): Promise<Partial<Law>> => {
+  if (!process.env.GOOGLE_API_KEY) {
+    return { aiSummary: "Error: GOOGLE_API_KEY no configurada" };
+  }
+
   try {
     const model = genAI.getGenerativeModel({
       model: "gemini-1.5-flash",
       generationConfig: {
-        responseMimeType: "application/json",
+        temperature: 0.3,
+        topK: 20,
+        topP: 0.8,
       }
     });
 
-    const prompt = `Realiza un análisis profundo y técnico de la regulación "${lawTitle}" aplicada a la industria "${industry}" en México.
-    
-    Usa datos reales de la legislación mexicana.
-    Calcula multas basadas en UMAS vigentes.
-    Define pasos de acción operativos, no administrativos.
-    Estima un plazo crítico realista.
-    
-    Devuelve SOLO un objeto JSON válido sin markdown con la siguiente estructura:
-    {
-      "aiSummary": "Resumen analítico",
-      "actionSteps": ["paso1", "paso2"],
-      "estimatedFine": "Multa estimada",
-      "deadline": "Plazo crítico",
-      "complianceProgress": número
-    }`;
+    const prompt = `ANÁLISIS TÉCNICO PROFUNDO - ${lawTitle} para ${industry}
+
+REQUERIMIENTOS:
+- Análisis técnico específico
+- Cálculo de multas en UMAS 2024
+- Pasos operativos concretos
+- Plazos realistas
+
+RESPUESTA JSON:
+{
+  "aiSummary": "Análisis ejecutivo detallado",
+  "actionSteps": ["Paso operativo 1", "Paso operativo 2"],
+  "estimatedFine": "Rango de multas en UMAS",
+  "deadline": "Plazo crítico realista",
+  "complianceProgress": 35
+}`;
 
     const result = await model.generateContent(prompt);
-    const response = await result.response;
+    const response = result.response;
     const text = response.text();
 
     if (text) {
-      const cleanText = text.replace(/```json\n?|\n?```/g, '').trim();
-      return JSON.parse(cleanText) as Partial<Law>;
+      const cleanText = text.replace(/```json\s*|\s*```/g, '').trim();
+      return JSON.parse(cleanText);
     }
-    return { aiSummary: "Análisis no disponible en este momento." };
-  } catch (e) {
-    console.error("Analysis Error:", e);
-    return { aiSummary: "Error al analizar la regulación." };
+    return {
+      aiSummary: "Análisis no disponible temporalmente",
+      actionSteps: ["Contactar al área técnica", "Revisar documentación"],
+      estimatedFine: "Por determinar",
+      deadline: "30 días",
+      complianceProgress: 10
+    };
+  } catch (error) {
+    console.error("Analysis Error:", error);
+    return {
+      aiSummary: "Error en el análisis técnico",
+      actionSteps: ["Verificar conexión API", "Reintentar análisis"],
+      estimatedFine: "No disponible",
+      deadline: "Por definir",
+      complianceProgress: 0
+    };
   }
-}
+};
 
 /**
  * Analyzes ACTUAL user provided legal evidence text.
  */
 export const analyzeEvidence = async (text: string): Promise<AuditResult> => {
+  if (!process.env.GOOGLE_API_KEY) {
+    return {
+      compliant: false,
+      verdictTitle: "Error de Configuración",
+      analysis: "GOOGLE_API_KEY no configurada",
+      confidence: 0
+    };
+  }
+
   try {
     const model = genAI.getGenerativeModel({
       model: "gemini-1.5-flash",
       generationConfig: {
-        responseMimeType: "application/json",
+        temperature: 0.1,
+        topK: 10,
+        topP: 0.9,
       }
     });
 
-    const prompt = `Actúa como Auditor ISO Senior y Perito Legal en México.
-    Analiza el siguiente TEXTO REAL extraído de un documento:
-    
-    "${text}"
-    
-    Tarea:
-    1. Identifica qué tipo de documento es.
-    2. Verifica si menciona fechas de vencimiento.
-    3. Cruza la información contra NOMs vigentes (STPS, SEMARNAT, Protección Civil).
-    4. Detecta inconsistencias o riesgos legales.
-    
-    Sé extremadamente crítico y analítico.
-    
-    Devuelve SOLO un objeto JSON válido sin markdown con la siguiente estructura:
-    {
-      "compliant": boolean,
-      "verdictTitle": "Título del dictamen",
-      "analysis": "Análisis detallado",
-      "confidence": número
-    }`;
+    const prompt = `AUDITORÍA LEGAL - Análisis de documento:
+
+"${text.substring(0, 3000)}" // Limitar longitud
+
+EVALUAR:
+1. Tipo de documento y validez
+2. Fechas de vencimiento
+3. Cumplimiento con NOMs mexicanas
+4. Riesgos legales identificados
+
+RESPUESTA JSON:
+{
+  "compliant": true|false,
+  "verdictTitle": "Ej: Cumple Parcialmente | Vencido | En Regla",
+  "analysis": "Análisis técnico detallado con referencias",
+  "confidence": 85
+}`;
 
     const result = await model.generateContent(prompt);
-    const response = await result.response;
+    const response = result.response;
     const resultText = response.text();
 
     if (resultText) {
-      const cleanText = resultText.replace(/```json\n?|\n?```/g, '').trim();
-      return JSON.parse(cleanText) as AuditResult;
+      const cleanText = resultText.replace(/```json\s*|\s*```/g, '').trim();
+      return JSON.parse(cleanText);
     }
-    throw new Error("No response text");
+
+    throw new Error("Respuesta vacía del modelo");
   } catch (error) {
     console.error("Audit Error:", error);
     return {
       compliant: false,
       verdictTitle: "Error de Análisis",
-      analysis: "No se pudo procesar el texto. Asegúrate de que el contenido sea legible.",
+      analysis: "No se pudo procesar el documento. Verifique la conexión y formato.",
       confidence: 0
     };
   }
@@ -221,32 +257,43 @@ export const sendChatMessage = async (
   message: string,
   context?: string
 ): Promise<string> => {
+  if (!process.env.GOOGLE_API_KEY) {
+    return "🔴 ERROR: GOOGLE_API_KEY no configurada. Configure la variable de entorno en Vercel.";
+  }
+
   try {
-    // Inject the massive persona into the system context for the chat
     const contextInstruction = context
-      ? `CONTEXTO ACTIVO DEL USUARIO: Estás analizando la regulación: ${context}. Usa la información de esta ley para llenar tu plantilla.`
-      : "CONTEXTO: El usuario está en el dashboard general.";
+      ? `CONTEXTO ACTIVO: Analizando regulación: ${context}`
+      : "CONTEXTO: Dashboard general LegiTech AI";
 
     const fullSystemInstruction = `${LEGITECH_SYSTEM_INSTRUCTION}\n\n${contextInstruction}`;
 
     const model = genAI.getGenerativeModel({
       model: "gemini-1.5-flash",
-      systemInstruction: fullSystemInstruction
+      systemInstruction: fullSystemInstruction,
+      generationConfig: {
+        temperature: 0.8,
+        topK: 40,
+        topP: 0.95,
+        maxOutputTokens: 2048,
+      }
     });
 
-    // Construir el historial de chat
+    // Convertir historial al formato correcto
+    const formattedHistory = history.map(msg => ({
+      role: msg.role as "user" | "model",
+      parts: [{ text: msg.parts[0]?.text || "" }]
+    }));
+
     const chat = model.startChat({
-      history: history.map(msg => ({
-        role: msg.role === 'user' ? 'user' : 'model',
-        parts: [{ text: msg.parts[0].text }]
-      }))
+      history: formattedHistory
     });
 
     const result = await chat.sendMessage(message);
-    const response = await result.response;
-    return response.text() || "Lo siento, no pude procesar tu solicitud.";
+    const response = result.response;
+    return response.text() || "🤖 No pude generar una respuesta. Intenta reformular tu pregunta.";
   } catch (error) {
     console.error("Chat Error:", error);
-    return "Error de conexión con el servicio de IA.";
+    return "🔴 Error de conexión con el servicio de IA. Verifica tu conexión e intenta nuevamente.";
   }
 };

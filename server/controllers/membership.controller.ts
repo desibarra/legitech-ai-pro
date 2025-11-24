@@ -25,6 +25,7 @@ export const getMembershipStatus = async (req: AuthRequest, res: Response) => {
 
         res.json({ isMember: isActive, membership });
     } catch (error) {
+        console.error('Get membership error:', error);
         res.status(500).json({ message: 'Error fetching membership', error });
     }
 };
@@ -36,7 +37,7 @@ export const activateMembership = async (req: AuthRequest, res: Response) => {
 
         const startDate = new Date();
         const endDate = new Date();
-        endDate.setFullYear(endDate.getFullYear() + 1); // 1 year duration
+        endDate.setFullYear(endDate.getFullYear() + 1); // Default 1 year duration
 
         const membership = await prisma.membership.upsert({
             where: { userId },
@@ -57,6 +58,7 @@ export const activateMembership = async (req: AuthRequest, res: Response) => {
 
         res.json({ message: 'Membership activated', membership });
     } catch (error) {
+        console.error('Activate membership error:', error);
         res.status(500).json({ message: 'Error activating membership', error });
     }
 };

@@ -1,9 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
-import prisma from '@/lib/prisma'
-import { hashPassword, signToken } from '@/lib/auth'
+import prisma from '../lib/prisma'
+import { hashPassword, signToken } from '../lib/auth'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-    // SIEMPRE responde JSON, nunca HTML
     res.setHeader('Content-Type', 'application/json')
     res.setHeader('Access-Control-Allow-Origin', '*')
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
@@ -20,21 +19,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     try {
         const { name, email, password } = req.body
 
-        // Validaciones básicas
         if (!name || !email || !password) {
             return res.status(400).json({ error: 'Todos los campos son requeridos' })
         }
 
-        // Verificar si el email ya existe
         const existing = await prisma.user.findUnique({ where: { email } })
         if (existing) {
             return res.status(400).json({ error: 'El email ya está registrado' })
         }
 
-        // Hash password
         const hashedPassword = await hashPassword(password)
 
-        // Crear usuario con membership en una transacción
         const user = await prisma.user.create({
             data: {
                 name,
@@ -44,7 +39,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                     create: {
                         status: 'active',
                         type: 'free',
-                        startDate: new Date(),
+                        startDate: new Date()
                     }
                 }
             },
@@ -53,7 +48,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             }
         })
 
-        // Generar token
         const token = signToken({ userId: user.id })
 
         return res.status(201).json({
@@ -71,7 +65,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     } catch (error: any) {
         console.error('ERROR EN REGISTER:', error)
 
-        // Manejar error de duplicado (Prisma error code P2002)
         if (error.code === 'P2002') {
             return res.status(400).json({ error: 'El email ya está registrado' })
         }

@@ -1,8 +1,8 @@
 {
     "compilerOptions": {
         "target": "ES2022",
-        "module": "NodeNext",
-        "moduleResolution": "NodeNext",
+        "module": "ESNext",
+        "moduleResolution": "Bundler",
         "lib": [
             "ES2022"
         ],
@@ -12,10 +12,12 @@
         "esModuleInterop": true,
         "skipLibCheck": true,
         "forceConsistentCasingInFileNames": true,
-        "noEmit": false
+        "noEmit": true,
+        "allowSyntheticDefaultImports": true
     },
     "include": [
-        "server/**/*"
+        "server/**/*",
+        "api/**/*"
     ],
     "exclude": [
         "node_modules"

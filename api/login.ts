@@ -1,8 +1,19 @@
+// api/auth/login.ts
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import prisma from './lib/prisma';
-import { verifyPassword } from './lib/auth';
+import prisma from '../../lib/prisma';
+import { verifyPassword } from '../../lib/auth';
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export const config = {
+    api: {
+        bodyParser: true,
+    },
+};
+
+export default async function handler(
+    req: VercelRequest,
+    res: VercelResponse
+) {
+    // Forzar siempre JSON y CORS
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -23,12 +34,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             return res.status(400).json({ error: 'Email y contraseña requeridos' });
         }
 
-        const user = await prisma.user.findUnique({ where: { email } });
+        const user = await prisma.user.findUnique({
+            where: { email },
+        });
+
         if (!user) {
             return res.status(400).json({ error: 'Credenciales inválidas' });
         }
 
         const isValid = await verifyPassword(password, user.password);
+
         if (!isValid) {
             return res.status(400).json({ error: 'Credenciales inválidas' });
         }
@@ -36,14 +51,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const jwt = require('jsonwebtoken');
         const token = jwt.sign(
             { userId: user.id, email: user.email },
-            process.env.JWT_SECRET || 'fallback_temporal',
+            process.env.JWT_SECRET || 'fallback_temporal_cambia_esto_ya',
             { expiresIn: '7d' }
         );
 
         return res.status(200).json({
             message: 'Login exitoso',
             token,
-            user: { id: user.id, name: user.name, email: user.email, role: user.role },
+            user: {
+                id: user.id,
+                name: user.name,
+                email: user.email,
+                role: user.role,
+            },
         });
     } catch (error: any) {
         console.error('Error en login:', error);

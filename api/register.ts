@@ -1,8 +1,19 @@
+// api/auth/register.ts
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import prisma from './lib/prisma';
-import { hashPassword } from './lib/auth';
+import prisma from '../../lib/prisma';
+import { hashPassword } from '../../lib/auth';
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export const config = {
+    api: {
+        bodyParser: true,
+    },
+};
+
+export default async function handler(
+    req: VercelRequest,
+    res: VercelResponse
+) {
+    // Forzar siempre JSON y CORS
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -23,7 +34,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             return res.status(400).json({ error: 'Faltan campos requeridos' });
         }
 
-        const existingUser = await prisma.user.findUnique({ where: { email } });
+        // Verificar si ya existe
+        const existingUser = await prisma.user.findUnique({
+            where: { email },
+        });
+
         if (existingUser) {
             return res.status(400).json({ error: 'El correo ya está registrado' });
         }
@@ -31,23 +46,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const hashedPassword = await hashPassword(password);
 
         const user = await prisma.user.create({
-            data: { name, email, password: hashedPassword },
+            data: {
+                name,
+                email,
+                password: hashedPassword,
+            },
         });
 
+        // Generar token (asegúrate de tener JWT_SECRET en .env)
         const jwt = require('jsonwebtoken');
         const token = jwt.sign(
             { userId: user.id, email: user.email },
-            process.env.JWT_SECRET || 'fallback_temporal',
+            process.env.JWT_SECRET || 'fallback_temporal_cambia_esto_ya',
             { expiresIn: '7d' }
         );
 
         return res.status(201).json({
             message: 'Usuario registrado correctamente',
             token,
-            user: { id: user.id, name: user.name, email: user.email },
+            user: {
+                id: user.id,
+                name: user.name,
+                email: user.email,
+            },
         });
     } catch (error: any) {
         console.error('Error en register:', error);
+        // ESTA ES LA CLAVE: SIEMPRE devolver JSON aunque todo explote
         return res.status(500).json({
             error: 'Error interno del servidor',
             details: process.env.NODE_ENV === 'development' ? error.message : undefined,

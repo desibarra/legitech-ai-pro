@@ -1,9 +1,12 @@
-import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
 
-const secret = process.env.JWT_SECRET || 'fallback-secret-change-me';
+const secret = process.env.JWT_SECRET || 'temporal-cambiar-en-produccion';
 
-export const signToken = (payload: object) => jwt.sign(payload, secret, { expiresIn: '7d' });
-export const hashPassword = (pass: string) => bcrypt.hash(pass, 10);
-export const verifyPassword = (pass: string, hash: string) => bcrypt.compare(pass, hash);
+export const hashPassword = (password: string) => bcrypt.hash(password, 10);
+export const comparePassword = (password: string, hash: string) => bcrypt.compare(password, hash);
+export const signToken = (payload: object) => jwt.sign(payload, secret, { expiresIn: '30d' });
+
+// Compatibility exports for existing endpoints
+export const verifyPassword = comparePassword;
 export const verifyToken = (token: string) => jwt.verify(token, secret);

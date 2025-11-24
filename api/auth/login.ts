@@ -1,8 +1,8 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import prisma from '../../lib/prisma';
-import { allowCors } from '../../lib/auth';
+import prisma from '../lib/prisma';
+import { allowCors } from '../lib/auth';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'secret';
 

@@ -1,6 +1,6 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
-import prisma from '../../lib/prisma';
-import { allowCors, verifyToken } from '../../lib/auth';
+import prisma from '../lib/prisma';
+import { allowCors, verifyToken } from '../lib/auth';
 
 async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'POST') {

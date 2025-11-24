@@ -1,24 +1,8 @@
-import jwt from "jsonwebtoken";
-import bcrypt from "bcrypt";
+import jwt from 'jsonwebtoken';
+import bcrypt from 'bcrypt';
 
-const JWT_SECRET = process.env.JWT_SECRET || "default_secret_change_me";
+const secret = process.env.JWT_SECRET || 'fallback-secret-change-me';
 
-export function signToken(payload: object) {
-    return jwt.sign(payload, JWT_SECRET, { expiresIn: "7d" });
-}
-
-export function verifyToken(token: string) {
-    try {
-        return jwt.verify(token, JWT_SECRET);
-    } catch (err) {
-        return null;
-    }
-}
-
-export async function hashPassword(password: string): Promise<string> {
-    return bcrypt.hash(password, 10);
-}
-
-export async function verifyPassword(password: string, hash: string): Promise<boolean> {
-    return bcrypt.compare(password, hash);
-}
+export const signToken = (payload: object) => jwt.sign(payload, secret, { expiresIn: '7d' });
+export const hashPassword = (pass: string) => bcrypt.hash(pass, 10);
+export const verifyPassword = (pass: string, hash: string) => bcrypt.compare(pass, hash);

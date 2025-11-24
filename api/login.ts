@@ -1,13 +1,3 @@
-// api/auth/login.ts
-import type { VercelRequest, VercelResponse } from '@vercel/node';
-import prisma from '../../lib/prisma';
-import { verifyPassword } from '../../lib/auth';
-
-export const config = {
-    api: {
-        bodyParser: true,
-    },
-};
 
 export default async function handler(
     req: VercelRequest,

@@ -1,7 +1,7 @@
 // api/auth/register.ts
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import prisma from '../../lib/prisma';
-import { hashPassword } from '../../lib/auth';
+import prisma from '@/lib/prisma';
+import { hashPassword } from '@/lib/auth';
 
 export const config = {
     api: {

@@ -1,0 +1,73 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  password  String
+  name      String?
+  role      String   @default("user") // "user", "admin"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  membership Membership?
+  payments   Payment[]
+  audits     Audit[]
+}
+
+model Membership {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @unique
+  type      String   // "annual"
+  status    String   // "active", "expired", "cancelled"
+  startDate DateTime @default(now())
+  endDate   DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model Payment {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  amount    Float
+  currency  String   @default("MXN")
+  status    String   // "completed", "pending", "failed"
+  date      DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model Law {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String   @db.Text
+  category    String
+  isoImpact   String?
+  impactLevel String   // "Alto", "Medio", "Bajo"
+  status      String   // "Vigente", "Reformada", "Derogada"
+  dateAdded   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Audit {
+  id           Int      @id @default(autoincrement())
+  userId       Int
+  documentText String   @db.Text
+  result       String   // "compliant", "non_compliant"
+  confidence   Float
+  analysis     String   @db.Text
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}

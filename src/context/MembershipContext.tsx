@@ -37,11 +37,18 @@ export const MembershipProvider = ({ children }: { children: ReactNode }) => {
             const res = await fetch('/api/membership/status', {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-            const data = await res.json();
-            setIsMember(data.isMember);
-            setMembership(data.membership);
+
+            const contentType = res.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+                const data = await res.json();
+                setIsMember(data.isMember);
+                setMembership(data.membership);
+            } else {
+                console.warn('Received non-JSON response for membership status');
+                setIsMember(false);
+            }
         } catch (error) {
-            console.error(error);
+            console.error('Check status error:', error);
             setIsMember(false);
         } finally {
             setLoading(false);
@@ -53,19 +60,30 @@ export const MembershipProvider = ({ children }: { children: ReactNode }) => {
     }, [isAuthenticated]);
 
     const activateMembership = async (type = 'annual') => {
-        const token = localStorage.getItem('token');
-        const res = await fetch('/api/membership/activate', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ type }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.message);
+        try {
+            const token = localStorage.getItem('token');
+            const res = await fetch('/api/membership/activate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ type }),
+            });
 
-        await checkStatus();
+            const contentType = res.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                throw new Error('Received non-JSON response from server');
+            }
+
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || 'Activation failed');
+
+            await checkStatus();
+        } catch (error: any) {
+            console.error('Activate membership error:', error);
+            throw new Error(error.message || 'Activation failed');
+        }
     };
 
     return (

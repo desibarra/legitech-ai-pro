@@ -32,31 +32,53 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }, []);
 
     const login = async (email: string, password: string) => {
-        const res = await fetch('/api/auth/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.message || 'Login failed');
+        try {
+            const res = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password }),
+            });
 
-        localStorage.setItem('token', data.token);
-        setIsAuthenticated(true);
-        setUser(data.user);
+            const contentType = res.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                throw new Error('Received non-JSON response from server');
+            }
+
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || 'Login failed');
+
+            localStorage.setItem('token', data.token);
+            setIsAuthenticated(true);
+            setUser(data.user);
+        } catch (error: any) {
+            console.error('Login error:', error);
+            throw new Error(error.message || 'Login failed');
+        }
     };
 
     const register = async (email: string, password: string, name: string) => {
-        const res = await fetch('/api/auth/register', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password, name }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.message || 'Registration failed');
+        try {
+            const res = await fetch('/api/auth/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password, name }),
+            });
 
-        localStorage.setItem('token', data.token);
-        setIsAuthenticated(true);
-        setUser(data.user);
+            const contentType = res.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                throw new Error('Received non-JSON response from server');
+            }
+
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || 'Registration failed');
+
+            localStorage.setItem('token', data.token);
+            setIsAuthenticated(true);
+            setUser(data.user);
+        } catch (error: any) {
+            console.error('Registration error:', error);
+            throw new Error(error.message || 'Registration failed');
+        }
     };
 
     const logout = () => {

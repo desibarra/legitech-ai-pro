@@ -7,8 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "dev:server": "nodemon --exec ts-node --esm --project tsconfig.server.json server/server.ts",
-    "vercel-build": "npm run build && tsc -p tsconfig.server.json",
+    "vercel-build": "vite build",
     "postinstall": "prisma generate"
   },
   "dependencies": {

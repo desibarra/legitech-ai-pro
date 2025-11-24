@@ -7,7 +7,6 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "vercel-build": "vite build",
     "postinstall": "prisma generate"
   },
   "dependencies": {

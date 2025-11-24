@@ -1,9 +1,9 @@
-
-import { GoogleGenAI, Type } from "@google/genai";
+// services/geminiService.ts
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { IndustryType, Law, AuditResult } from "../types";
 
 // Initialize Gemini Client
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY || "");
 
 // --- LEGITECH CORE PERSONA & KNOWLEDGE BASE ---
 const LEGITECH_SYSTEM_INSTRUCTION = `
@@ -58,42 +58,44 @@ FORMATO DE RESPUESTA OBLIGATORIO (Úsalo para consultas regulatorias):
  */
 export const simulateNewLaw = async (industry: IndustryType): Promise<Law | null> => {
   try {
+    const model = genAI.getGenerativeModel({
+      model: "gemini-1.5-flash",
+      generationConfig: {
+        responseMimeType: "application/json",
+      }
+    });
+
     const prompt = `Actúa como un Monitor Regulatorio en Tiempo Real para México. 
     Busca en tu base de conocimiento una regulación, norma oficial mexicana (NOM) o reforma legal REAL y VIGENTE que sea crítica para la industria: "${industry}".
     
     No inventes datos. Usa regulaciones existentes (ej: NOMs de STPS, SEMARNAT, SCT, SAT).
     Dame un caso específico que las empresas suelan olvidar o incumplir.
     
-    Genera el objeto JSON con datos técnicos reales.`;
+    Devuelve SOLO un objeto JSON válido sin markdown con la siguiente estructura:
+    {
+      "title": "Nombre oficial",
+      "description": "Descripción técnica",
+      "category": "Categoría",
+      "isoImpact": "Impacto ISO",
+      "impactLevel": "Alto|Medio|Bajo",
+      "aiSummary": "Resumen ejecutivo",
+      "actionSteps": ["paso1", "paso2"],
+      "estimatedFine": "Multa estimada",
+      "deadline": "Plazo crítico",
+      "complianceProgress": número
+    }`;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            title: { type: Type.STRING, description: "Nombre oficial de la NOM o Ley" },
-            description: { type: Type.STRING, description: "Descripción técnica del requisito" },
-            category: { type: Type.STRING, description: "Categoría (ej: Ambiental, Seguridad, Fiscal)" },
-            isoImpact: { type: Type.STRING },
-            impactLevel: { type: Type.STRING, enum: ["Alto", "Medio", "Bajo"] },
-            aiSummary: { type: Type.STRING, description: "Resumen ejecutivo para Gerente de Planta" },
-            actionSteps: { type: Type.ARRAY, items: { type: Type.STRING } },
-            estimatedFine: { type: Type.STRING, description: "Multa real según Ley Federal de Derechos o Reglamento" },
-            deadline: { type: Type.STRING, description: "Fecha límite crítica o plazo en días (ej: 45 días)" },
-            complianceProgress: { type: Type.INTEGER, description: "Estimación de cumplimiento inicial típico (0-100)" }
-          },
-          required: ["title", "description", "impactLevel", "actionSteps", "estimatedFine", "deadline"]
-        }
-      }
-    });
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
 
-    if (response.text) {
-      const data = JSON.parse(response.text);
+    if (text) {
+      // Limpiar el texto en caso de que venga con backticks de JSON
+      const cleanText = text.replace(/```json\n?|\n?```/g, '').trim();
+      const data = JSON.parse(cleanText);
+
       return {
-        id: Math.random().toString(36).substr(2, 9),
+        id: Math.random().toString(36).substring(2, 9),
         title: data.title,
         description: data.description,
         category: data.category || "General",
@@ -119,33 +121,43 @@ export const simulateNewLaw = async (industry: IndustryType): Promise<Law | null
  * Generates a deep dive analysis for a specific law using real regulatory knowledge.
  */
 export const analyzeSpecificLaw = async (lawTitle: string, industry: string): Promise<Partial<Law>> => {
-    try {
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: `Realiza un análisis profundo y técnico de la regulación "${lawTitle}" aplicada a la industria "${industry}" en México.
-            
-            Usa datos reales de la legislación mexicana.
-            Calcula multas basadas en UMAS vigentes.
-            Define pasos de acción operativos, no administrativos.
-            Estima un plazo crítico realista.`,
-            config: {
-                responseMimeType: "application/json",
-                responseSchema: {
-                    type: Type.OBJECT,
-                    properties: {
-                        aiSummary: { type: Type.STRING },
-                        actionSteps: { type: Type.ARRAY, items: { type: Type.STRING } },
-                        estimatedFine: { type: Type.STRING },
-                        deadline: { type: Type.STRING },
-                        complianceProgress: { type: Type.INTEGER }
-                    }
-                }
-            }
-        });
-        return JSON.parse(response.text) as Partial<Law>;
-    } catch (e) {
-        return { aiSummary: "Análisis no disponible en este momento." };
+  try {
+    const model = genAI.getGenerativeModel({
+      model: "gemini-1.5-flash",
+      generationConfig: {
+        responseMimeType: "application/json",
+      }
+    });
+
+    const prompt = `Realiza un análisis profundo y técnico de la regulación "${lawTitle}" aplicada a la industria "${industry}" en México.
+    
+    Usa datos reales de la legislación mexicana.
+    Calcula multas basadas en UMAS vigentes.
+    Define pasos de acción operativos, no administrativos.
+    Estima un plazo crítico realista.
+    
+    Devuelve SOLO un objeto JSON válido sin markdown con la siguiente estructura:
+    {
+      "aiSummary": "Resumen analítico",
+      "actionSteps": ["paso1", "paso2"],
+      "estimatedFine": "Multa estimada",
+      "deadline": "Plazo crítico",
+      "complianceProgress": número
+    }`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+
+    if (text) {
+      const cleanText = text.replace(/```json\n?|\n?```/g, '').trim();
+      return JSON.parse(cleanText) as Partial<Law>;
     }
+    return { aiSummary: "Análisis no disponible en este momento." };
+  } catch (e) {
+    console.error("Analysis Error:", e);
+    return { aiSummary: "Error al analizar la regulación." };
+  }
 }
 
 /**
@@ -153,36 +165,41 @@ export const analyzeSpecificLaw = async (lawTitle: string, industry: string): Pr
  */
 export const analyzeEvidence = async (text: string): Promise<AuditResult> => {
   try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: `Actúa como Auditor ISO Senior y Perito Legal en México.
-      Analiza el siguiente TEXTO REAL extraído de un documento:
-      
-      "${text}"
-      
-      Tarea:
-      1. Identifica qué tipo de documento es.
-      2. Verifica si menciona fechas de vencimiento.
-      3. Cruza la información contra NOMs vigentes (STPS, SEMARNAT, Protección Civil).
-      4. Detecta inconsistencias o riesgos legales.
-      
-      Sé extremadamente crítico y analítico.`,
-      config: {
+    const model = genAI.getGenerativeModel({
+      model: "gemini-1.5-flash",
+      generationConfig: {
         responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            compliant: { type: Type.BOOLEAN },
-            verdictTitle: { type: Type.STRING, description: "Título corto del dictamen (ej: Vencido, Cumple Parcialmente)" },
-            analysis: { type: Type.STRING, description: "Análisis detallado técnico citando normas específicas" },
-            confidence: { type: Type.NUMBER, description: "Nivel de confianza 0-100" }
-          }
-        }
       }
     });
 
-    if (response.text) {
-      return JSON.parse(response.text) as AuditResult;
+    const prompt = `Actúa como Auditor ISO Senior y Perito Legal en México.
+    Analiza el siguiente TEXTO REAL extraído de un documento:
+    
+    "${text}"
+    
+    Tarea:
+    1. Identifica qué tipo de documento es.
+    2. Verifica si menciona fechas de vencimiento.
+    3. Cruza la información contra NOMs vigentes (STPS, SEMARNAT, Protección Civil).
+    4. Detecta inconsistencias o riesgos legales.
+    
+    Sé extremadamente crítico y analítico.
+    
+    Devuelve SOLO un objeto JSON válido sin markdown con la siguiente estructura:
+    {
+      "compliant": boolean,
+      "verdictTitle": "Título del dictamen",
+      "analysis": "Análisis detallado",
+      "confidence": número
+    }`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const resultText = response.text();
+
+    if (resultText) {
+      const cleanText = resultText.replace(/```json\n?|\n?```/g, '').trim();
+      return JSON.parse(cleanText) as AuditResult;
     }
     throw new Error("No response text");
   } catch (error) {
@@ -200,26 +217,34 @@ export const analyzeEvidence = async (text: string): Promise<AuditResult> => {
  * Chat with the AI legal assistant with context awareness.
  */
 export const sendChatMessage = async (
-    history: {role: string, parts: {text: string}[]}[], 
-    message: string,
-    context?: string
+  history: { role: string; parts: { text: string }[] }[],
+  message: string,
+  context?: string
 ): Promise<string> => {
   try {
     // Inject the massive persona into the system context for the chat
-    const contextInstruction = context 
-        ? `CONTEXTO ACTIVO DEL USUARIO: Estás analizando la regulación: ${context}. Usa la información de esta ley para llenar tu plantilla.`
-        : "CONTEXTO: El usuario está en el dashboard general.";
+    const contextInstruction = context
+      ? `CONTEXTO ACTIVO DEL USUARIO: Estás analizando la regulación: ${context}. Usa la información de esta ley para llenar tu plantilla.`
+      : "CONTEXTO: El usuario está en el dashboard general.";
 
     const fullSystemInstruction = `${LEGITECH_SYSTEM_INSTRUCTION}\n\n${contextInstruction}`;
 
-    const chat = ai.chats.create({
-      model: 'gemini-2.5-flash',
-      config: { systemInstruction: fullSystemInstruction },
-      history: history
+    const model = genAI.getGenerativeModel({
+      model: "gemini-1.5-flash",
+      systemInstruction: fullSystemInstruction
     });
 
-    const result = await chat.sendMessage({ message });
-    return result.text || "Lo siento, no pude procesar tu solicitud.";
+    // Construir el historial de chat
+    const chat = model.startChat({
+      history: history.map(msg => ({
+        role: msg.role === 'user' ? 'user' : 'model',
+        parts: [{ text: msg.parts[0].text }]
+      }))
+    });
+
+    const result = await chat.sendMessage(message);
+    const response = await result.response;
+    return response.text() || "Lo siento, no pude procesar tu solicitud.";
   } catch (error) {
     console.error("Chat Error:", error);
     return "Error de conexión con el servicio de IA.";

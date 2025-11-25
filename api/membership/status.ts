@@ -1,52 +1,49 @@
-import { VercelRequest, VercelResponse } from '@vercel/node'
-import prisma from '../lib/prisma'
-import { verifyToken } from '../lib/auth'
+import { VercelRequest, VercelResponse } from '@vercel/node';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-    res.setHeader("Access-Control-Allow-Origin", "*")
-    res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS")
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization")
-    res.setHeader("Content-Type", "application/json")
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
-    if (req.method === "OPTIONS") {
-        return res.status(200).end()
+    if (req.method === 'OPTIONS') {
+        return res.status(200).end();
     }
 
     if (req.method !== 'GET') {
-        return res.status(405).json({ message: 'Method not allowed' })
+        return res.status(405).json({ error: 'Método no permitido' });
     }
 
     try {
-        const token = req.headers.authorization?.replace('Bearer ', '')
+        const { userId } = req.query;
 
-        if (!token) {
-            return res.status(401).json({ message: 'No token provided' })
+        if (!userId || typeof userId !== 'string') {
+            return res.status(400).json({ error: 'userId es requerido' });
         }
 
-        const decoded = verifyToken(token)
-        if (!decoded || typeof decoded !== 'object' || !('userId' in decoded)) {
-            return res.status(401).json({ message: 'Invalid token' })
-        }
-
-        const userId = (decoded as any).userId
-        const membership = await prisma.membership.findUnique({ where: { userId } })
+        const membership = await prisma.membership.findUnique({
+            where: { userId },
+            include: { user: { select: { name: true, email: true } } }
+        });
 
         if (!membership) {
-            return res.status(200).json({ isMember: false, membership: null })
+            return res.status(404).json({ error: 'Membership no encontrada' });
         }
 
-        const isActive = membership.status === 'active' && membership.endDate && new Date() < membership.endDate
+        res.status(200).json({
+            success: true,
+            membership
+        });
 
-        if (!isActive && membership.status === 'active') {
-            await prisma.membership.update({
-                where: { id: membership.id },
-                data: { status: 'expired' }
-            })
-        }
-
-        return res.status(200).json({ isMember: isActive, membership })
     } catch (error: any) {
-        console.error('Get membership error:', error)
-        return res.status(500).json({ message: 'Error fetching membership', error: String(error) })
+        console.error('Error en membership status:', error);
+        res.status(500).json({
+            error: 'Error al obtener membership',
+            details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    } finally {
+        await prisma.$disconnect();
     }
 }

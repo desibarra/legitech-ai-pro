@@ -11,18 +11,19 @@
     "vercel-build": "npm install --include=dev && next build"
   },
   "dependencies": {
-    "next": "14.0.0",
-    "react": "^18.0.0",
-    "react-dom": "^18.0.0",
-    "@prisma/client": "^5.22.0",
-    "@vercel/node": "^4.0.0",
     "@google/generative-ai": "^0.21.0",
-    "bcryptjs": "^2.4.3",
-    "jsonwebtoken": "^9.0.0",
-    "lucide-react": "^0.263.1",
+    "@prisma/client": "^5.22.0",
+    "@types/bcrypt": "^6.0.0",
+    "@types/node": "^20.0.0",
     "@types/react": "^18.0.0",
     "@types/react-dom": "^18.0.0",
-    "@types/node": "^20.0.0"
+    "@vercel/node": "^4.0.0",
+    "bcrypt": "^6.0.0",
+    "jsonwebtoken": "^9.0.0",
+    "lucide-react": "^0.263.1",
+    "next": "14.0.0",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0"
   },
   "devDependencies": {
     "prisma": "^5.22.0",

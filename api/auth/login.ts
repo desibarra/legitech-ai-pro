@@ -1,36 +1,49 @@
-import type { NextApiRequest, NextApiResponse } from 'next'
-import prisma from '../lib/prisma'
-import { comparePassword, signToken } from '../lib/auth'
+import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-    res.setHeader('Content-Type', 'application/json')
-    res.setHeader('Access-Control-Allow-Origin', '*')
-    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+const prisma = new PrismaClient();
+const JWT_SECRET = process.env.JWT_SECRET;
+
+export default async function handler(req, res) {
+    // Configurar CORS
+    res.setHeader('Access-Control-Allow-Credentials', true);
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+    res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
 
     if (req.method === 'OPTIONS') {
-        return res.status(200).end()
+        return res.status(200).end();
     }
 
     if (req.method !== 'POST') {
-        return res.status(405).json({ error: 'Método no permitido' })
+        return res.status(405).json({ error: 'Método no permitido' });
     }
 
     try {
-        const { email, password } = req.body
-        const user = await prisma.user.findUnique({ where: { email } })
+        const { email, password } = req.body;
 
-        if (!user || !(await comparePassword(password, user.password))) {
-            return res.status(401).json({ error: 'Credenciales inválidas' })
+        if (!email || !password) {
+            return res.status(400).json({ error: 'Email y contraseña son requeridos' });
         }
 
-        const token = signToken({ userId: user.id })
+        const user = await prisma.user.findUnique({ where: { email } });
+
+        if (!user || !(await bcrypt.compare(password, user.password))) {
+            return res.status(401).json({ error: 'Credenciales inválidas' });
+        }
+
+        const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '7d' });
+
+        const { password: _, ...userWithoutPassword } = user;
+
         return res.status(200).json({
             token,
-            user: { id: user.id, name: user.name, email: user.email, role: user.role }
-        })
-    } catch (error: any) {
-        console.error('ERROR EN LOGIN:', error)
-        return res.status(500).json({ error: 'Error interno', details: error.message })
+            user: userWithoutPassword
+        });
+
+    } catch (error) {
+        console.error('ERROR EN LOGIN:', error);
+        return res.status(500).json({ error: 'Error interno del servidor' });
     }
 }

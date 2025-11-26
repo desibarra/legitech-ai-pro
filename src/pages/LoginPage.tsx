@@ -40,7 +40,14 @@ const LoginPage: React.FC = () => {
 
             navigate("/app");
         } catch (err: any) {
-            setError(err.message || "Credenciales inválidas");
+            console.error("Login Error:", err);
+            let msg = err.message || "Credenciales inválidas";
+            
+            if (msg.includes("Failed to fetch")) {
+                msg = "⚠️ Conexión bloqueada. Tu Antivirus o Firewall está impidiendo la conexión. Intenta desactivarlo temporalmente.";
+            }
+            
+            setError(msg);
         } finally {
             setLoading(false);
         }

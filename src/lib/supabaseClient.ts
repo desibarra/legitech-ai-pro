@@ -5,8 +5,8 @@ console.log("📌 ENV DEBUG:", {
 import { createClient } from '@supabase/supabase-js';
 
 // ⚠️ Importar variables de entorno correctas
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL as string || "").trim();
+const supabaseAnonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY as string || "").trim();
 
 // 🔐 Validación opcional (no rompe build)
 if (!supabaseUrl || !supabaseAnonKey) {
@@ -16,4 +16,10 @@ if (!supabaseUrl || !supabaseAnonKey) {
     console.warn(" VITE_SUPABASE_ANON_KEY");
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true
+    }
+});

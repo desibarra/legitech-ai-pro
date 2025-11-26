@@ -40,7 +40,15 @@ const RegisterPage: React.FC = () => {
             navigate("/pricing");
 
         } catch (err: any) {
-            setError(err.message || "Error al crear la cuenta");
+            console.error("Registration Error:", err);
+            let msg = err.message || "Error al crear la cuenta";
+            
+            // Detección específica de bloqueo por Antivirus/Firewall (Kaspersky injects traffic.js)
+            if (msg.includes("Failed to fetch")) {
+                msg = "⚠️ Conexión bloqueada. Tu Antivirus (Kaspersky/Avast) o AdBlocker está impidiendo la conexión con Supabase. Intenta desactivarlo temporalmente o agrega este sitio a excepciones.";
+            }
+            
+            setError(msg);
         } finally {
             setLoading(false);
         }

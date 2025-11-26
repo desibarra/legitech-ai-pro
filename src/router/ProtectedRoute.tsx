@@ -11,7 +11,7 @@ import { useMembership } from '../context/MembershipContext';
  * - If both satisfied → render the requested component via <Outlet />
  */
 const ProtectedRoute = () => {
-    const { isAuthenticated, loading: authLoading } = useAuth();
+    const { isAuthenticated, profile, loading: authLoading } = useAuth();
     const { isMember, loading: membershipLoading } = useMembership();
 
     if (authLoading || membershipLoading) {
@@ -25,6 +25,12 @@ const ProtectedRoute = () => {
     if (!isAuthenticated) {
         return <Navigate to="/login" replace />;
     }
+
+    // Admin bypass membership check
+    if (profile?.role === "admin") {
+        return <Outlet />;
+    }
+
     if (!isMember) {
         return <Navigate to="/pricing" replace />;
     }

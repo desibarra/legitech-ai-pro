@@ -57,23 +57,34 @@ export const MembershipProvider = ({ children }: { children: React.ReactNode }) 
 
         setLoading(true);
 
-        // Crear o actualizar registro
-        const { data, error } = await supabase
-            .from("memberships")
-            .upsert({
-                user_id: user.id,
-                type,
-                status: "active",
-                start_date: new Date().toISOString(),
-                end_date: null
-            })
-            .select()
-            .single();
+        try {
+            // Crear o actualizar registro
+            const { data, error } = await supabase
+                .from("memberships")
+                .upsert({
+                    user_id: user.id,
+                    type,
+                    status: "active",
+                    start_date: new Date().toISOString(),
+                    end_date: null
+                }, { onConflict: 'user_id' })
+                .select()
+                .single();
 
-        if (error) throw error;
+            if (error) throw error;
 
-        setMembership(data);
-        setLoading(false);
+            setMembership(data);
+        } catch (error: any) {
+            console.error("Activate Membership Error:", error);
+            // Si el error es por duplicado (aunque upsert debería manejarlo), lo ignoramos si ya existe
+            if (error.code === '23505') { // unique_violation
+                 await refreshMembership();
+            } else {
+                throw error;
+            }
+        } finally {
+            setLoading(false);
+        }
     };
 
     // Refrescar cuando el usuario cambie

@@ -35,7 +35,14 @@ const RegisterPage: React.FC = () => {
             if (data.session) {
                 localStorage.setItem("token", data.session.access_token);
                 localStorage.setItem("user", JSON.stringify(data.user));
-                navigate("/pricing");
+                
+                // Check for admin role
+                const profile = data.user?.user_metadata;
+                if (profile?.role === "admin") {
+                    navigate("/app");
+                } else {
+                    navigate("/pricing");
+                }
             } else {
                 // Caso: Confirmación de correo requerida
                 setError("✅ Cuenta creada. Por favor verifica tu correo electrónico para continuar.");

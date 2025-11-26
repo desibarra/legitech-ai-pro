@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabaseClient";
 
 interface AuthContextType {
     user: any;
+    profile: any;
     loading: boolean;
     isAuthenticated: boolean;
     logout: () => Promise<void>;
@@ -27,6 +28,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // 🔥 Escuchar cambios de sesión (login, logout, refresh)
         const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
             setUser(session?.user || null);
+            setLoading(false);
         });
 
         return () => listener.subscription.unsubscribe();
@@ -40,6 +42,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     const value: AuthContextType = {
         user,
+        profile: user?.user_metadata || null,
         loading,
         isAuthenticated: !!user,
         logout,

@@ -4,10 +4,16 @@ import { useAuth } from "../context/AuthContext";
 import { useMembership } from "../context/MembershipContext";
 
 const PricingPage: React.FC = () => {
-    const { isAuthenticated, user, loading: authLoading } = useAuth();
+    const { isAuthenticated, user, profile, loading: authLoading } = useAuth();
     const { activateMembership } = useMembership();
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
+
+    // 1. Admin Bypass
+    if (isAuthenticated && profile?.role === "admin") {
+        navigate("/app");
+        return null;
+    }
 
     if (authLoading) {
         return (

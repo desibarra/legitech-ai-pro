@@ -1,101 +1,55 @@
-import React, { createContext, useState, ReactNode, useContext, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { supabase } from "../lib/supabaseClient";
 
-interface User {
-    id: number;
-    email: string;
-    name: string | null;
-    role: string;
-}
-
-interface AuthContextProps {
-    isAuthenticated: boolean;
-    user: User | null;
-    login: (email: string, password: string) => Promise<void>;
-    register: (email: string, password: string, name: string) => Promise<void>;
-    logout: () => void;
+interface AuthContextType {
+    user: any;
     loading: boolean;
+    isAuthenticated: boolean;
+    logout: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextProps | undefined>(undefined);
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-    const [isAuthenticated, setIsAuthenticated] = useState(false);
-    const [user, setUser] = useState<User | null>(null);
+    const [user, setUser] = useState<any>(null);
     const [loading, setLoading] = useState(true);
 
+    // 🔥 Cargar sesión al iniciar la app
     useEffect(() => {
-        const token = localStorage.getItem('token');
-        if (token) {
-            setIsAuthenticated(true);
-        }
-        setLoading(false);
+        const loadSession = async () => {
+            const { data } = await supabase.auth.getSession();
+            setUser(data.session?.user || null);
+            setLoading(false);
+        };
+
+        loadSession();
+
+        // 🔥 Escuchar cambios de sesión (login, logout, refresh)
+        const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+            setUser(session?.user || null);
+        });
+
+        return () => listener.subscription.unsubscribe();
     }, []);
 
-    const login = async (email: string, password: string) => {
-        try {
-            const res = await fetch('/api/auth/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password }),
-            });
-
-            const contentType = res.headers.get('content-type');
-            if (!contentType || !contentType.includes('application/json')) {
-                throw new Error('Received non-JSON response from server');
-            }
-
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.message || 'Login failed');
-
-            localStorage.setItem('token', data.token);
-            setIsAuthenticated(true);
-            setUser(data.user);
-        } catch (error: any) {
-            console.error('Login error:', error);
-            throw new Error(error.message || 'Login failed');
-        }
-    };
-
-    const register = async (email: string, password: string, name: string) => {
-        try {
-            const res = await fetch('/api/auth/register', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password, name }),
-            });
-
-            const contentType = res.headers.get('content-type');
-            if (!contentType || !contentType.includes('application/json')) {
-                throw new Error('Received non-JSON response from server');
-            }
-
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.message || 'Registration failed');
-
-            localStorage.setItem('token', data.token);
-            setIsAuthenticated(true);
-            setUser(data.user);
-        } catch (error: any) {
-            console.error('Registration error:', error);
-            throw new Error(error.message || 'Registration failed');
-        }
-    };
-
-    const logout = () => {
-        localStorage.removeItem('token');
-        setIsAuthenticated(false);
+    const logout = async () => {
+        await supabase.auth.signOut();
         setUser(null);
+        localStorage.clear();
     };
 
-    return (
-        <AuthContext.Provider value={{ isAuthenticated, user, login, register, logout, loading }}>
-            {children}
-        </AuthContext.Provider>
-    );
+    const value: AuthContextType = {
+        user,
+        loading,
+        isAuthenticated: !!user,
+        logout,
+    };
+
+    return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => {
-    const context = useContext(AuthContext);
-    if (!context) throw new Error('useAuth must be used within AuthProvider');
-    return context;
+    const ctx = useContext(AuthContext);
+    if (!ctx) throw new Error("useAuth must be inside AuthProvider");
+    return ctx;
 };

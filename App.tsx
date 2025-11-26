@@ -172,10 +172,10 @@ const App: React.FC = () => {
                 </td>
                 <td className="px-6 py-4">
                   <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${law.impactLevel === 'Alto' ? 'bg-rose-100 text-rose-700' :
-                      law.impactLevel === 'Medio' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
+                    law.impactLevel === 'Medio' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
                     }`}>
                     <span className={`w-1.5 h-1.5 rounded-full ${law.impactLevel === 'Alto' ? 'bg-rose-500' :
-                        law.impactLevel === 'Medio' ? 'bg-amber-500' : 'bg-emerald-500'
+                      law.impactLevel === 'Medio' ? 'bg-amber-500' : 'bg-emerald-500'
                       }`}></span>
                     {law.impactLevel}
                   </span>
@@ -448,3 +448,4 @@ const StatusBadge = ({ status }: { status: string }) => {
 }
 
 export default App;
+// trigger redeploy

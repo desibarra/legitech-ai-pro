@@ -2,298 +2,232 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { IndustryType, Law, AuditResult } from "../types";
 
-// Initialize Gemini Client
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY || "");
+// =========================
+//  🔐 VITE ENV VARIABLES
+// =========================
+const apiKey = import.meta.env.VITE_GOOGLE_API_KEY || "";
 
-// --- LEGITECH CORE PERSONA & KNOWLEDGE BASE ---
+if (!apiKey) {
+  console.error("❌ ERROR: VITE_GOOGLE_API_KEY no está configurada en .env");
+}
+
+// Inicializar cliente Gemini
+const genAI = new GoogleGenerativeAI(apiKey);
+
+// =========================
+//  ⚙ LegiTech System Prompt
+// =========================
 const LEGITECH_SYSTEM_INSTRUCTION = `
 Eres el núcleo de LegiTech AI, una plataforma mexicana de gestión regulatoria proactiva.
 Tu objetivo es ser más útil que Norlex. No eres un abogado teórico, eres un gestor operativo y estratégico.
 
 TUS REGLAS INQUEBRANTABLES:
-1.  **Formato Visual:** Tu respuesta debe seguir ESTRICTAMENTE el formato estructurado definido abajo (Header ASCII, Panel de Riesgo, etc.).
-2.  **Enfoque Financiero:** Siempre calcula impacto en MXN (Pesos Mexicanos) y UMA (Unidad de Medida y Actualización).
-3.  **Roles Operativos:** Dirígete a Superintendentes, Gerentes de Planta y Responsables de Seguridad, no solo abogados.
-4.  **Multinormatividad:** Cruza leyes Federales (SEMARNAT, STPS), Estatales y Municipales.
-5.  **Base de Conocimiento Minera Prioritaria:** NOM-141-SEMARNAT, NOM-155, NOM-023-STPS, Ley Minera.
-6.  **Simulación:** Si te piden simular, crea escenarios de "Costo de Cumplimiento vs Multas".
+1. Formato Visual obligatorio.
+2. Impacto financiero en MXN/UMA.
+3. Enfoque operativo para gerentes y supervisores.
+4. Cruzar normas Federales/Estatales/Municipales.
+5. Prioridad: Sector minero mexicano.
+6. Simulación de escenarios.
 
-FORMATO DE RESPUESTA OBLIGATORIO (Úsalo para consultas regulatorias):
+FORMATO DE RESPUESTA OBLIGATORIO:
 
 🏢 **LEGITECH AI** | Monitor Regulatorio Inteligente
-═─═─═─═─═─═─═─═─═─═─═─═─═─═─═─═─═─═─═─═─═─═─═─═─
+═─═─═─═─═─═─═─═─═─═─═─═─═─═─═─═─═─═─═─═
 
-🔍 **[TÍTULO BREVE DEL CASO/CONSULTA]**
+🔍 **[TÍTULO]**
 
 📊 **PANEL DE RIESGO**
-• Nivel de Riesgo: [🔴 ALTO | 🟡 MEDIO | 🟢 BAJO]
-• Impacto Financiero: [ESTIMACIÓN EN MXN O UMAS]
-• Plazo Crítico: [XX DÍAS / FECHA]
-• Estado Cumplimiento: [0-100%]
+• Nivel: [🔴 / 🟡 / 🟢]
+• Multa estimada (MXN/UMA)
+• Plazo Crítico
+• % Cumplimiento
 
 🎯 **ACCIONES INMEDIATAS**
-1. [Acción operativa] - Resp: [Cargo Específico] ([Plazo])
-2. [Acción operativa] - Resp: [Cargo Específico] ([Plazo])
-3. [Acción operativa] - Resp: [Cargo Específico] ([Plazo])
+1. Acción - Responsable - Plazo
+2. Acción - Responsable - Plazo
 
 📋 **PLAN DETALLADO**
-├─ **Fase 1: Diagnóstico y Contención** (Días 1-15)
-│  ├─ [Subtarea concreta]
-│  └─ [Subtarea concreta]
-├─ **Fase 2: Implementación Técnica** (Días 16-30)
-│  ├─ [Subtarea concreta]
-│  └─ [Subtarea concreta]
-└─ **Fase 3: Auditoría y Cierre** (Días 31-45)
+- Fase 1
+- Fase 2
+- Fase 3
 
-🔔 **ALERTAS ACTIVAS**
-• [Riesgo de clausura/multa específica]
-• [Referencia a Norma relacionada]
+🔔 **ALERTAS**
+• Riesgo específico
 
 📞 **SOPORTE LEGITECH**
-¿Necesitas generar reportes para auditoría, conectar con laboratorios certificados o simular el ROI de cumplimiento?
 `;
 
-/**
- * Realizes a search for actual regulatory updates using Gemini's knowledge.
- */
+// ========================================================
+//  1️⃣ SIMULAR UNA LEY / NORMA NUEVA
+// ========================================================
 export const simulateNewLaw = async (industry: IndustryType): Promise<Law | null> => {
-  // Early return si no hay API key
-  if (!process.env.GOOGLE_API_KEY) {
-    console.error("GOOGLE_API_KEY no configurada");
-    return null;
-  }
+  if (!apiKey) return null;
 
   try {
     const model = genAI.getGenerativeModel({
       model: "gemini-1.5-flash",
-      generationConfig: {
-        temperature: 0.7,
-        topK: 40,
-        topP: 0.95,
-      }
+      generationConfig: { temperature: 0.7 },
     });
 
-    const prompt = `Como experto regulatorio mexicano, identifica una NOM o ley VIGENTE crítica para ${industry}.
-    
-REQUISITOS:
-- Norma REAL (NOM, Ley Federal, Reglamento)
-- Caso de incumplimiento común
-- Datos técnicos precisos
-- Multas en UMAS actuales
+    const prompt = `
+Dame una norma mexicana REAL aplicable al sector ${industry}.
 
-RESPUESTA EN JSON:
+Formato JSON:
 {
-  "title": "Nombre oficial",
-  "description": "Descripción técnica específica",
-  "category": "Ambiental|Seguridad|Fiscal|Operativa",
-  "impactLevel": "Alto|Medio|Bajo",
-  "aiSummary": "Resumen ejecutivo para gerentes",
-  "actionSteps": ["Paso 1 concreto", "Paso 2 concreto"],
-  "estimatedFine": "Ej: 500 a 5000 UMAS",
-  "deadline": "Ej: 30 días o fecha específica",
-  "complianceProgress": 25
+  "title": "",
+  "description": "",
+  "category": "",
+  "impactLevel": "",
+  "aiSummary": "",
+  "actionSteps": [],
+  "estimatedFine": "",
+  "deadline": "",
+  "complianceProgress": 20
 }`;
 
-    const result = await model.generateContent(prompt);
-    const response = result.response;
-    const text = response.text();
+    const output = await model.generateContent(prompt);
+    const text = output.response.text();
+    const clean = text.replace(/```json|```/g, "").trim();
+    const data = JSON.parse(clean);
 
-    if (text) {
-      const cleanText = text.replace(/```json\s*|\s*```/g, '').trim();
-      const data = JSON.parse(cleanText);
-
-      return {
-        id: `law_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
-        title: data.title || `NOM para ${industry}`,
-        description: data.description || "Regulación específica del sector",
-        category: data.category || "General",
-        isoImpact: data.isoImpact || "Por evaluar",
-        impactLevel: data.impactLevel || "Medio",
-        status: 'Pendiente',
-        dateAdded: new Date().toISOString(),
-        aiSummary: data.aiSummary || "Análisis en proceso",
-        actionSteps: data.actionSteps || ["Diagnóstico inicial", "Evaluación de cumplimiento"],
-        estimatedFine: data.estimatedFine || "1000-5000 UMAS",
-        deadline: data.deadline || "60 días",
-        complianceProgress: data.complianceProgress || 20
-      };
-    }
-    return null;
-  } catch (error) {
-    console.error("Gemini Simulation Error:", error);
+    return {
+      id: `law_${Date.now()}`,
+      title: data.title,
+      description: data.description,
+      category: data.category,
+      isoImpact: "Por evaluar",
+      impactLevel: data.impactLevel,
+      status: "Pendiente",
+      dateAdded: new Date().toISOString(),
+      aiSummary: data.aiSummary,
+      actionSteps: data.actionSteps,
+      estimatedFine: data.estimatedFine,
+      deadline: data.deadline,
+      complianceProgress: data.complianceProgress,
+    };
+  } catch (err) {
+    console.error("Gemini Simulation Error:", err);
     return null;
   }
 };
 
-/**
- * Generates a deep dive analysis for a specific law using real regulatory knowledge.
- */
+// ========================================================
+//  2️⃣ ANÁLISIS ESPECÍFICO DE UNA LEY
+// ========================================================
 export const analyzeSpecificLaw = async (lawTitle: string, industry: string): Promise<Partial<Law>> => {
-  if (!process.env.GOOGLE_API_KEY) {
-    return { aiSummary: "Error: GOOGLE_API_KEY no configurada" };
-  }
+  if (!apiKey) return { aiSummary: "API Key no configurada" };
 
   try {
     const model = genAI.getGenerativeModel({
       model: "gemini-1.5-flash",
-      generationConfig: {
-        temperature: 0.3,
-        topK: 20,
-        topP: 0.8,
-      }
+      generationConfig: { temperature: 0.3 },
     });
 
-    const prompt = `ANÁLISIS TÉCNICO PROFUNDO - ${lawTitle} para ${industry}
+    const prompt = `
+ANÁLISIS TÉCNICO: ${lawTitle} para ${industry}
 
-REQUERIMIENTOS:
-- Análisis técnico específico
-- Cálculo de multas en UMAS 2024
-- Pasos operativos concretos
-- Plazos realistas
-
-RESPUESTA JSON:
+JSON:
 {
-  "aiSummary": "Análisis ejecutivo detallado",
-  "actionSteps": ["Paso operativo 1", "Paso operativo 2"],
-  "estimatedFine": "Rango de multas en UMAS",
-  "deadline": "Plazo crítico realista",
+  "aiSummary": "",
+  "actionSteps": [],
+  "estimatedFine": "",
+  "deadline": "",
   "complianceProgress": 35
 }`;
 
-    const result = await model.generateContent(prompt);
-    const response = result.response;
-    const text = response.text();
+    const output = await model.generateContent(prompt);
+    const text = output.response.text();
+    const clean = text.replace(/```json|```/g, "").trim();
 
-    if (text) {
-      const cleanText = text.replace(/```json\s*|\s*```/g, '').trim();
-      return JSON.parse(cleanText);
-    }
+    return JSON.parse(clean);
+  } catch (err) {
+    console.error("Analysis Error:", err);
     return {
-      aiSummary: "Análisis no disponible temporalmente",
-      actionSteps: ["Contactar al área técnica", "Revisar documentación"],
-      estimatedFine: "Por determinar",
-      deadline: "30 días",
-      complianceProgress: 10
-    };
-  } catch (error) {
-    console.error("Analysis Error:", error);
-    return {
-      aiSummary: "Error en el análisis técnico",
-      actionSteps: ["Verificar conexión API", "Reintentar análisis"],
-      estimatedFine: "No disponible",
-      deadline: "Por definir",
-      complianceProgress: 0
+      aiSummary: "No se pudo analizar",
+      actionSteps: ["Revisar manualmente"],
+      estimatedFine: "N/D",
+      deadline: "N/D",
+      complianceProgress: 0,
     };
   }
 };
 
-/**
- * Analyzes ACTUAL user provided legal evidence text.
- */
+// ========================================================
+//  3️⃣ ANÁLISIS DE DOCUMENTOS (EVIDENCIA)
+// ========================================================
 export const analyzeEvidence = async (text: string): Promise<AuditResult> => {
-  if (!process.env.GOOGLE_API_KEY) {
+  if (!apiKey) {
     return {
       compliant: false,
-      verdictTitle: "Error de Configuración",
-      analysis: "GOOGLE_API_KEY no configurada",
-      confidence: 0
+      verdictTitle: "API key faltante",
+      analysis: "Configura VITE_GOOGLE_API_KEY",
+      confidence: 0,
     };
   }
 
   try {
     const model = genAI.getGenerativeModel({
       model: "gemini-1.5-flash",
-      generationConfig: {
-        temperature: 0.1,
-        topK: 10,
-        topP: 0.9,
-      }
+      generationConfig: { temperature: 0.1 },
     });
 
-    const prompt = `AUDITORÍA LEGAL - Análisis de documento:
+    const prompt = `
+Analiza el siguiente texto legal:
 
-"${text.substring(0, 3000)}" // Limitar longitud
+"${text.substring(0, 3000)}"
 
-EVALUAR:
-1. Tipo de documento y validez
-2. Fechas de vencimiento
-3. Cumplimiento con NOMs mexicanas
-4. Riesgos legales identificados
-
-RESPUESTA JSON:
+Formato JSON:
 {
-  "compliant": true|false,
-  "verdictTitle": "Ej: Cumple Parcialmente | Vencido | En Regla",
-  "analysis": "Análisis técnico detallado con referencias",
-  "confidence": 85
+  "compliant": true/false,
+  "verdictTitle": "",
+  "analysis": "",
+  "confidence": 90
 }`;
 
-    const result = await model.generateContent(prompt);
-    const response = result.response;
-    const resultText = response.text();
-
-    if (resultText) {
-      const cleanText = resultText.replace(/```json\s*|\s*```/g, '').trim();
-      return JSON.parse(cleanText);
-    }
-
-    throw new Error("Respuesta vacía del modelo");
-  } catch (error) {
-    console.error("Audit Error:", error);
+    const output = await model.generateContent(prompt);
+    const clean = output.response.text().replace(/```json|```/g, "").trim();
+    return JSON.parse(clean);
+  } catch (err) {
+    console.error("Audit Error:", err);
     return {
       compliant: false,
-      verdictTitle: "Error de Análisis",
-      analysis: "No se pudo procesar el documento. Verifique la conexión y formato.",
-      confidence: 0
+      verdictTitle: "Error",
+      analysis: "No se pudo procesar",
+      confidence: 0,
     };
   }
 };
 
-/**
- * Chat with the AI legal assistant with context awareness.
- */
+// ========================================================
+//  4️⃣ CHAT LEGITECH (SISTEMA PRINCIPAL)
+// ========================================================
 export const sendChatMessage = async (
   history: { role: string; parts: { text: string }[] }[],
   message: string,
   context?: string
 ): Promise<string> => {
-  if (!process.env.GOOGLE_API_KEY) {
-    return "🔴 ERROR: GOOGLE_API_KEY no configurada. Configure la variable de entorno en Vercel.";
-  }
+  if (!apiKey) return "API key no configurada";
 
   try {
-    const contextInstruction = context
-      ? `CONTEXTO ACTIVO: Analizando regulación: ${context}`
-      : "CONTEXTO: Dashboard general LegiTech AI";
-
-    const fullSystemInstruction = `${LEGITECH_SYSTEM_INSTRUCTION}\n\n${contextInstruction}`;
+    const fullInstruction = `${LEGITECH_SYSTEM_INSTRUCTION}
+${context ? "CONTEXTO: " + context : ""}`;
 
     const model = genAI.getGenerativeModel({
       model: "gemini-1.5-flash",
-      systemInstruction: fullSystemInstruction,
-      generationConfig: {
-        temperature: 0.8,
-        topK: 40,
-        topP: 0.95,
-        maxOutputTokens: 2048,
-      }
+      systemInstruction: fullInstruction,
     });
 
-    // Convertir historial al formato correcto
     const formattedHistory = history.map(msg => ({
       role: msg.role as "user" | "model",
-      parts: [{ text: msg.parts[0]?.text || "" }]
+      parts: [{ text: msg.parts[0]?.text || "" }],
     }));
 
-    const chat = model.startChat({
-      history: formattedHistory
-    });
+    const chat = model.startChat({ history: formattedHistory });
+    const res = await chat.sendMessage(message);
 
-    const result = await chat.sendMessage(message);
-    const response = result.response;
-    return response.text() || "🤖 No pude generar una respuesta. Intenta reformular tu pregunta.";
-  } catch (error) {
-    console.error("Chat Error:", error);
-    return "🔴 Error de conexión con el servicio de IA. Verifica tu conexión e intenta nuevamente.";
+    return res.response.text();
+  } catch (err) {
+    console.error("Chat Error:", err);
+    return "Error procesando la solicitud.";
   }
 };

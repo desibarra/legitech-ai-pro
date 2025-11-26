@@ -35,9 +35,13 @@ const RegisterPage: React.FC = () => {
             if (data.session) {
                 localStorage.setItem("token", data.session.access_token);
                 localStorage.setItem("user", JSON.stringify(data.user));
+                navigate("/pricing");
+            } else {
+                // Caso: Confirmación de correo requerida
+                setError("✅ Cuenta creada. Por favor verifica tu correo electrónico para continuar.");
+                // Opcional: Redirigir al login después de unos segundos
+                setTimeout(() => navigate("/login"), 5000);
             }
-
-            navigate("/pricing");
 
         } catch (err: any) {
             console.error("Registration Error:", err);

@@ -4,9 +4,17 @@ import { useAuth } from "../context/AuthContext";
 import { supabase } from "../lib/supabaseClient";
 
 const PricingPage: React.FC = () => {
-    const { isAuthenticated, user } = useAuth();
+    const { isAuthenticated, user, loading: authLoading } = useAuth();
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
+
+    if (authLoading) {
+        return (
+            <div className="flex items-center justify-center min-h-screen bg-gray-50">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+            </div>
+        );
+    }
 
     const handleSubscribe = async () => {
         if (!user) {
@@ -67,12 +75,17 @@ const PricingPage: React.FC = () => {
                         {loading ? "Procesando..." : "Comprar Ahora"}
                     </button>
                 ) : (
-                    <Link
-                        to="/register"
-                        className="block w-full text-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
-                    >
-                        Registrarse para Comprar
-                    </Link>
+                    <div className="space-y-3">
+                        <Link
+                            to="/login"
+                            className="block w-full text-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
+                        >
+                            Iniciar Sesión para Comprar
+                        </Link>
+                        <p className="text-center text-sm text-gray-500">
+                            ¿No tienes cuenta? <Link to="/register" className="text-indigo-600 hover:underline">Regístrate aquí</Link>
+                        </p>
+                    </div>
                 )}
             </div>
         </div>

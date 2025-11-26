@@ -1,8 +1,8 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import AppRouter from './src/router/AppRouter';
-import { AuthProvider } from './src/context/AuthContext';
-import { MembershipProvider } from './src/context/MembershipContext';
+import AppRouter from './router/AppRouter';
+import { AuthProvider } from './context/AuthContext';
+import { MembershipProvider } from './context/MembershipContext';
 import './index.css';
 
 const rootElement = document.getElementById('root');

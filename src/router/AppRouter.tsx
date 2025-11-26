@@ -1,10 +1,10 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import LandingPage from '../pages/LandingPage';
-import PricingPage from '../pages/PricingPage';
-import LoginPage from '../pages/LoginPage';
-import RegisterPage from '../pages/RegisterPage';
-import AppDashboard from '../pages/AppDashboard';
+import LandingPage from '@/pages/LandingPage';
+import PricingPage from '@/pages/PricingPage';
+import LoginPage from '@/pages/LoginPage';
+import RegisterPage from '@/pages/RegisterPage';
+import AppDashboard from '@/pages/AppDashboard';
 import ProtectedRoute from './ProtectedRoute';
 
 const AppRouter: React.FC = () => (

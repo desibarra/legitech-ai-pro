@@ -1,6 +1,6 @@
 // services/geminiService.ts
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { IndustryType, Law, AuditResult } from "../types";
+import { IndustryType, Law, AuditResult } from "@/types";
 
 // =========================
 //  🔐 VITE ENV VARIABLES

@@ -1,10 +1,11 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { supabase } from "../lib/supabaseClient";
+import { useMembership } from "../context/MembershipContext";
 
 const PricingPage: React.FC = () => {
     const { isAuthenticated, user, loading: authLoading } = useAuth();
+    const { activateMembership } = useMembership();
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
 
@@ -25,22 +26,11 @@ const PricingPage: React.FC = () => {
         setLoading(true);
 
         try {
-            // Crear o actualizar la membresía del usuario
-            const { error } = await supabase
-                .from("memberships")
-                .upsert({
-                    user_id: user.id,
-                    type: "annual",
-                    status: "active",
-                    start_date: new Date().toISOString(),
-                });
-
-            if (error) throw error;
-
+            await activateMembership("annual");
             navigate("/app");
-        } catch (error) {
-            console.error(error);
-            alert("Error al activar la suscripción");
+        } catch (error: any) {
+            console.error("Subscription Error:", error);
+            alert(`Error al activar la suscripción: ${error.message || "Intente nuevamente"}`);
         } finally {
             setLoading(false);
         }

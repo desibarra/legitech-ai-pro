@@ -16,7 +16,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const [profile, setProfile] = useState<any>(null);
     const [loading, setLoading] = useState(true);
 
-    const fetchProfile = async (userId: string) => {
+    const fetchProfile = async (userId: string, email?: string) => {
         console.log("Fetching profile for:", userId);
         try {
             const { data, error } = await supabase
@@ -29,6 +29,29 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 console.warn('Error fetching profile:', error.message);
                 return null;
             }
+
+            if (!data && email) {
+                console.log("Profile missing, creating default admin profile for:", email);
+                // Auto-create admin profile if missing
+                const { data: newProfile, error: insertError } = await supabase
+                    .from('profiles')
+                    .insert({ 
+                        id: userId, 
+                        email: email, 
+                        role: 'admin',
+                        full_name: email.split('@')[0] 
+                    })
+                    .select()
+                    .single();
+                
+                if (insertError) {
+                    console.error("Error creating default profile:", insertError);
+                    return null;
+                }
+                console.log("Created new profile:", newProfile);
+                return newProfile;
+            }
+
             console.log("Profile found:", data);
             return data;
         } catch (err) {
@@ -41,19 +64,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         let mounted = true;
 
         const initAuth = async () => {
-            try {
+            // Timeout safety mechanism
+            const timeoutPromise = new Promise((_, reject) => 
+                setTimeout(() => reject(new Error("Auth initialization timeout")), 8000)
+            );
+
+            const loadAuth = async () => {
                 const { data: { session } } = await supabase.auth.getSession();
                 const currentUser = session?.user || null;
                 
                 if (mounted) {
                     setUser(currentUser);
                     if (currentUser) {
-                        const userProfile = await fetchProfile(currentUser.id);
+                        const userProfile = await fetchProfile(currentUser.id, currentUser.email);
                         if (mounted) setProfile(userProfile);
                     } else {
                         if (mounted) setProfile(null);
                     }
                 }
+            };
+
+            try {
+                await Promise.race([loadAuth(), timeoutPromise]);
             } catch (error) {
                 console.error("Auth initialization error:", error);
             } finally {
@@ -66,15 +98,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
             const currentUser = session?.user || null;
             if (mounted) {
-                // If session changes, we might need to show loading again if we want to be strict,
-                // but usually onAuthStateChange is fast. However, for role security, let's be safe.
                 if (currentUser?.id !== user?.id) {
                      setLoading(true);
                 }
                 
                 setUser(currentUser);
                 if (currentUser) {
-                    const userProfile = await fetchProfile(currentUser.id);
+                    const userProfile = await fetchProfile(currentUser.id, currentUser.email);
                     if (mounted) setProfile(userProfile);
                 } else {
                     if (mounted) setProfile(null);

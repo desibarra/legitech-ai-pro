@@ -11,7 +11,7 @@ import { useMembership } from '../context/MembershipContext';
  * - If both satisfied → render the requested component via <Outlet />
  */
 const ProtectedRoute = () => {
-    const { isAuthenticated, profile, loading: authLoading } = useAuth();
+    const { isAuthenticated, profile, user, loading: authLoading } = useAuth();
     const { isMember, loading: membershipLoading } = useMembership();
 
     if (authLoading || membershipLoading) {
@@ -26,8 +26,8 @@ const ProtectedRoute = () => {
         return <Navigate to="/login" replace />;
     }
 
-    // Admin bypass membership check
-    if (profile?.role === "admin") {
+    // Admin bypass membership check (Profile Role OR Hardcoded Email)
+    if (profile?.role === "admin" || user?.email === "crecesonline@gmail.com") {
         return <Outlet />;
     }
 

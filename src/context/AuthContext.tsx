@@ -64,9 +64,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         let mounted = true;
 
         const initAuth = async () => {
-            // Timeout safety mechanism
+            // Timeout safety mechanism (reduced to 5s)
             const timeoutPromise = new Promise((_, reject) => 
-                setTimeout(() => reject(new Error("Auth initialization timeout")), 8000)
+                setTimeout(() => reject(new Error("Auth initialization timeout")), 5000)
             );
 
             const loadAuth = async () => {
@@ -82,12 +82,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                         if (mounted) setProfile(null);
                     }
                 }
+                return currentUser;
             };
 
             try {
                 await Promise.race([loadAuth(), timeoutPromise]);
             } catch (error) {
                 console.error("Auth initialization error:", error);
+                // Fallback: If timeout occurs but we have a session in local storage or memory (which loadAuth might have set before hanging on profile)
+                // Actually, if loadAuth hangs on fetchProfile, setUser might have been called.
+                // Let's check if we can recover for admin.
+                if (mounted) {
+                    // Try to get user from supabase synchronously-ish if possible, or just check if user state was set
+                    // But we can't access 'user' state immediately here as it's a closure.
+                    // We can try to get session again quickly?
+                    const { data: { session } } = await supabase.auth.getSession(); 
+                    if (session?.user?.email === 'crecesonline@gmail.com') {
+                        console.warn("Emergency admin override activated due to timeout");
+                        setUser(session.user);
+                        setProfile({ id: session.user.id, email: session.user.email, role: 'admin' });
+                    }
+                }
             } finally {
                 if (mounted) setLoading(false);
             }

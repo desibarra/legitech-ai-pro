@@ -35,15 +35,12 @@ export const MembershipProvider = ({ children }: { children: React.ReactNode }) 
 
         setLoading(true);
 
-        // Timeout safety
-        const timeoutId = setTimeout(() => {
-            if (loading) {
-                console.warn("Membership fetch timed out");
-                setLoading(false);
-            }
-        }, 8000);
+        // Timeout safety mechanism using Promise.race
+        const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error("Membership fetch timeout")), 5000)
+        );
 
-        try {
+        const fetchMembership = async () => {
             const { data, error } = await supabase
                 .from("memberships")
                 .select("*")
@@ -52,15 +49,19 @@ export const MembershipProvider = ({ children }: { children: React.ReactNode }) 
 
             if (error) {
                 console.error("Membership error:", error.message);
-                setMembership(null);
-            } else {
-                setMembership(data);
+                return null;
             }
+            return data;
+        };
+
+        try {
+            // @ts-ignore
+            const result = await Promise.race([fetchMembership(), timeoutPromise]);
+            setMembership(result as Membership | null);
         } catch (err) {
-            console.error("Unexpected membership error:", err);
+            console.error("Membership fetch failed or timed out:", err);
             setMembership(null);
         } finally {
-            clearTimeout(timeoutId);
             setLoading(false);
         }
     };

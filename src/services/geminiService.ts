@@ -222,6 +222,12 @@ ${context ? "CONTEXTO: " + context : ""}`;
       parts: [{ text: msg.parts[0]?.text || "" }],
     }));
 
+    // 🚨 FIX: Gemini API requires history to start with 'user'. 
+    // Remove any leading 'model' messages (like the welcome message).
+    while (formattedHistory.length > 0 && formattedHistory[0].role === 'model') {
+      formattedHistory.shift();
+    }
+
     const chat = model.startChat({ history: formattedHistory });
     const res = await chat.sendMessage(message);
 

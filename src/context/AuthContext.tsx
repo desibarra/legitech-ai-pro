@@ -16,49 +16,59 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const [profile, setProfile] = useState<any>(null);
     const [loading, setLoading] = useState(true);
 
-    const fetchProfile = async (userId: string, email?: string) => {
-        console.log("Fetching profile for:", userId);
+    const fetchProfile = async (userId: string, email?: string, retries = 3): Promise<any> => {
+        console.log(`Fetching profile for: ${userId} (Attempts left: ${retries})`);
+        
         try {
-            const { data, error } = await supabase
+            // Race the query against a 6s timeout to detect hanging
+            const queryPromise = supabase
                 .from('profiles')
                 .select('*')
                 .eq('id', userId)
-                .maybeSingle();
-            
-            if (error) {
-                console.warn('Error fetching profile:', error.message);
-                // In production, we might want to retry or just return null.
-                // Returning null will likely cause access denial if strict checks are in place.
-                return null;
-            }
-
-            if (!data && email) {
-                console.log("Profile missing, attempting to create default profile for:", email);
-                // Auto-create profile if missing (Standard Production Behavior for new users)
-                const { data: newProfile, error: insertError } = await supabase
-                    .from('profiles')
-                    .insert({ 
-                        id: userId, 
-                        email: email, 
-                        // Default role is user, admin must be set in DB manually for security
-                        role: 'user', 
-                        full_name: email.split('@')[0] 
-                    })
-                    .select()
-                    .single();
+                .single();
                 
-                if (insertError) {
-                    console.error("Error creating default profile:", insertError);
-                    return null;
-                }
-                console.log("Created new profile:", newProfile);
-                return newProfile;
-            }
+            const timeoutPromise = new Promise((_, reject) => 
+                setTimeout(() => reject(new Error("Request timeout")), 6000)
+            );
 
+            // @ts-ignore
+            const { data, error } = await Promise.race([queryPromise, timeoutPromise]);
+
+            if (error) {
+                // Handle "Row not found" (PGRST116) -> Create Profile
+                if (error.code === 'PGRST116' && email) {
+                    console.log("Profile missing, creating new profile...");
+                    const { data: newProfile, error: insertError } = await supabase
+                        .from('profiles')
+                        .insert({ 
+                            id: userId, 
+                            email: email, 
+                            role: 'user', 
+                            full_name: email.split('@')[0] 
+                        })
+                        .select()
+                        .single();
+                    
+                    if (insertError) throw insertError;
+                    return newProfile;
+                }
+                throw error;
+            }
+            
             console.log("Profile found:", data);
             return data;
-        } catch (err) {
-            console.error('Unexpected error fetching profile:', err);
+
+        } catch (err: any) {
+            console.warn(`Profile fetch error (Attempt ${4 - retries}):`, err.message || err);
+
+            // Retry on timeout or network error
+            if (retries > 0) {
+                console.log("Retrying profile fetch...");
+                await new Promise(res => setTimeout(res, 1500));
+                return fetchProfile(userId, email, retries - 1);
+            }
+
+            console.error("All profile fetch attempts failed.");
             return null;
         }
     };

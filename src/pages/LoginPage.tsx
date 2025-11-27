@@ -29,6 +29,30 @@ const LoginPage: React.FC = () => {
         }));
     };
 
+    const handleMagicLink = async () => {
+        if (!formData.email) {
+            setError("Ingresa tu correo primero.");
+            return;
+        }
+        setLoading(true);
+        setError("");
+        try {
+            const { error } = await supabase.auth.signInWithOtp({
+                email: formData.email,
+                options: {
+                    emailRedirectTo: "https://legitech-ai-pro.vercel.app/app"
+                }
+            });
+            if (error) throw error;
+            setError("✅ ¡Enlace enviado! Revisa tu correo (y spam) para entrar.");
+        } catch (err: any) {
+            console.error("Magic Link Error:", err);
+            setError(err.message || "Error al enviar enlace mágico");
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError("");
@@ -119,6 +143,18 @@ const LoginPage: React.FC = () => {
                     >
                         {loading ? "Autenticando..." : "Iniciar Sesión"}
                     </button>
+
+                    {/* Admin Bypass / Magic Link Button */}
+                    {(formData.email === "crecesonline@gmail.com" || error.includes("Credenciales")) && (
+                        <button
+                            type="button"
+                            onClick={handleMagicLink}
+                            disabled={loading}
+                            className="w-full py-3 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 shadow-lg mt-4 border border-white/20"
+                        >
+                            {loading ? "Enviando..." : "🔑 Ingresar con Enlace Mágico (Sin Password)"}
+                        </button>
+                    )}
 
                     <p className="text-center text-slate-500 mt-6 text-sm">
                         ¿Aún no tienes cuenta?{" "}

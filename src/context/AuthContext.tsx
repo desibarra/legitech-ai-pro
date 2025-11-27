@@ -18,18 +18,29 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     const fetchProfile = async (userId: string, email?: string) => {
         console.log("Fetching profile for:", userId);
-        try {
-            const { data, error } = await supabase
+        
+        // Define the query promise
+        const queryPromise = async () => {
+             const { data, error } = await supabase
                 .from('profiles')
                 .select('*')
                 .eq('id', userId)
                 .maybeSingle();
-            
-            if (error) {
-                console.warn('Error fetching profile:', error.message);
-                return null;
-            }
+             
+             if (error) throw error;
+             return data;
+        };
 
+        // Define a timeout promise (4s)
+        const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error("Profile query timeout")), 4000)
+        );
+
+        try {
+            // Race them to prevent hanging
+            // @ts-ignore
+            const data = await Promise.race([queryPromise(), timeoutPromise]);
+            
             if (!data && email) {
                 console.log("Profile missing, creating default admin profile for:", email);
                 // Auto-create admin profile if missing
@@ -46,6 +57,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 
                 if (insertError) {
                     console.error("Error creating default profile:", insertError);
+                    // If insert fails, still return a mock admin profile for the admin email
+                    if (email === 'crecesonline@gmail.com') {
+                        return { id: userId, email, role: 'admin' };
+                    }
                     return null;
                 }
                 console.log("Created new profile:", newProfile);
@@ -55,7 +70,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             console.log("Profile found:", data);
             return data;
         } catch (err) {
-            console.error('Unexpected error fetching profile:', err);
+            console.error('Error or timeout fetching profile:', err);
+            // Fallback for admin on timeout/error
+            if (email === 'crecesonline@gmail.com') {
+                 console.warn("Returning emergency admin profile due to error/timeout");
+                 return { id: userId, email, role: 'admin' };
+            }
             return null;
         }
     };

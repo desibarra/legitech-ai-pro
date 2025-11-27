@@ -39,10 +39,10 @@ export const MembershipProvider = ({ children }: { children: React.ReactNode }) 
             .from("memberships")
             .select("*")
             .eq("user_id", user.id)
-            .single();
+            .maybeSingle();
 
         if (error) {
-            console.warn("⚠️ No membership found:", error.message);
+            console.error("Membership error:", error.message);
             setMembership(null);
         } else {
             setMembership(data);

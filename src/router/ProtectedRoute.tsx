@@ -26,8 +26,8 @@ const ProtectedRoute = () => {
         return <Navigate to="/login" replace />;
     }
 
-    // Admin bypass membership check (Profile Role OR Hardcoded Email)
-    if (profile?.role === "admin" || user?.email === "crecesonline@gmail.com") {
+    // Admin bypass membership check (Profile Role only)
+    if (profile?.role === "admin") {
         return <Outlet />;
     }
 

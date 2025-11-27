@@ -34,16 +34,13 @@ export const MembershipProvider = ({ children }: { children: React.ReactNode }) 
         }
 
         setLoading(true);
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 4000);
 
         try {
             const { data, error } = await supabase
                 .from("memberships")
                 .select("*")
                 .eq("user_id", user.id)
-                .maybeSingle()
-                .abortSignal(controller.signal);
+                .maybeSingle();
 
             if (error) {
                 console.error("Membership fetch error:", error.message);
@@ -52,14 +49,9 @@ export const MembershipProvider = ({ children }: { children: React.ReactNode }) 
                 setMembership(data);
             }
         } catch (err: any) {
-            if (err.name === 'AbortError') {
-                console.warn("Membership fetch aborted due to timeout");
-            } else {
-                console.error("Unexpected membership error:", err);
-            }
+            console.error("Unexpected membership error:", err);
             setMembership(null);
         } finally {
-            clearTimeout(timeoutId);
             setLoading(false);
         }
     };

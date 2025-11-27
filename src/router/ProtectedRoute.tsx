@@ -7,7 +7,6 @@ const ProtectedRoute = () => {
     const { isAuthenticated, profile, loading: authLoading } = useAuth();
     const { isMember, loading: membershipLoading } = useMembership();
 
-    // 1. Wait for Auth to be ready
     if (authLoading) {
         return (
             <div className="flex items-center justify-center min-h-screen bg-slate-900">
@@ -16,17 +15,16 @@ const ProtectedRoute = () => {
         );
     }
 
-    // 2. If not authenticated, redirect to login
     if (!isAuthenticated) {
         return <Navigate to="/login" replace />;
     }
 
-    // 3. Admin Bypass - Allow access immediately, ignoring membership status
+    // PRIORIDAD 1: ADMIN
     if (profile?.role === "admin") {
         return <Outlet />;
     }
 
-    // 4. Wait for Membership to be ready (only for non-admins)
+    // PRIORIDAD 2: USUARIO NORMAL
     if (membershipLoading) {
         return (
             <div className="flex items-center justify-center min-h-screen bg-slate-900">
@@ -35,12 +33,10 @@ const ProtectedRoute = () => {
         );
     }
 
-    // 5. If not a member, redirect to pricing
     if (!isMember) {
         return <Navigate to="/pricing" replace />;
     }
 
-    // 6. Allow access
     return <Outlet />;
 };
 

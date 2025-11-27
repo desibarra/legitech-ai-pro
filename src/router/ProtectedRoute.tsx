@@ -13,12 +13,12 @@ const ProtectedRoute = () => {
   // 2) No autenticado → login
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 
-  // 3) ADMIN → entrada inmediata sin esperar membresía
+  // 3) ADMIN → pasa directo siempre
   if (profile?.role === "admin") {
     return <Outlet />;
   }
 
-  // 4) Usuarios normales: esperar membresía
+  // 4) Usuarios normales → esperar membresía
   if (membershipLoading) return <LoadingSpinner />;
 
   // 5) Sin membresía → pricing

@@ -6,11 +6,12 @@ import LoginPage from '@/pages/LoginPage';
 import RegisterPage from '@/pages/RegisterPage';
 import AppDashboard from '@/pages/AppDashboard';
 import ProtectedRoute from './ProtectedRoute';
+import RootRedirect from '@/components/RootRedirect';
 
 const AppRouter: React.FC = () => (
     <BrowserRouter>
         <Routes>
-            <Route path="/" element={<Navigate to="/landing" replace />} />
+            <Route path="/" element={<RootRedirect />} />
             <Route path="/landing" element={<LandingPage />} />
             <Route path="/pricing" element={<PricingPage />} />
             <Route path="/login" element={<LoginPage />} />

@@ -35,20 +35,34 @@ export const MembershipProvider = ({ children }: { children: React.ReactNode }) 
 
         setLoading(true);
 
-        const { data, error } = await supabase
-            .from("memberships")
-            .select("*")
-            .eq("user_id", user.id)
-            .maybeSingle();
+        // Timeout safety
+        const timeoutId = setTimeout(() => {
+            if (loading) {
+                console.warn("Membership fetch timed out");
+                setLoading(false);
+            }
+        }, 8000);
 
-        if (error) {
-            console.error("Membership error:", error.message);
+        try {
+            const { data, error } = await supabase
+                .from("memberships")
+                .select("*")
+                .eq("user_id", user.id)
+                .maybeSingle();
+
+            if (error) {
+                console.error("Membership error:", error.message);
+                setMembership(null);
+            } else {
+                setMembership(data);
+            }
+        } catch (err) {
+            console.error("Unexpected membership error:", err);
             setMembership(null);
-        } else {
-            setMembership(data);
+        } finally {
+            clearTimeout(timeoutId);
+            setLoading(false);
         }
-
-        setLoading(false);
     };
 
     // 🚀 Activar membresía

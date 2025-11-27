@@ -1,8 +1,20 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { ArrowRight, Check, Shield, Zap, Globe, Scale, FileText, Search, Lock, Star, Sparkles } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 const LandingPage = () => {
+    const { isAuthenticated, loading } = useAuth();
+    const navigate = useNavigate();
+
+    useEffect(() => {
+        if (!loading && isAuthenticated) {
+            navigate('/app');
+        }
+    }, [isAuthenticated, loading, navigate]);
+
+    if (loading) return null; // Or a spinner
+
     return (
         <div className="min-h-screen w-full flex flex-col bg-slate-900 text-white font-sans selection:bg-blue-500 selection:text-white overflow-x-hidden">
             {/* Navbar */}

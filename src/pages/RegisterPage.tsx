@@ -36,13 +36,23 @@ const RegisterPage: React.FC = () => {
                 localStorage.setItem("token", data.session.access_token);
                 localStorage.setItem("user", JSON.stringify(data.user));
                 
-                // Check for admin role
-                const profile = data.user?.user_metadata;
-                if (profile?.role === "admin") {
-                    navigate("/app");
-                } else {
-                    navigate("/pricing");
+                // Create profile in DB
+                const { error: profileError } = await supabase
+                    .from('profiles')
+                    .insert([
+                        { 
+                            id: data.user?.id, 
+                            name: formData.name,
+                            role: 'user' // Default role
+                        }
+                    ]);
+
+                if (profileError) {
+                    console.error("Error creating profile:", profileError);
+                    // Continue anyway, maybe the trigger handled it or we can retry later
                 }
+
+                navigate("/pricing");
             } else {
                 // Caso: Confirmación de correo requerida
                 setError("✅ Cuenta creada. Por favor verifica tu correo electrónico para continuar.");

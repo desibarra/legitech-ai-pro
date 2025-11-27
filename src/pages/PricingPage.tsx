@@ -10,10 +10,11 @@ const PricingPage: React.FC = () => {
     const [loading, setLoading] = useState(false);
 
     // 1. Admin Bypass
-    if (isAuthenticated && profile?.role === "admin") {
-        navigate("/app");
-        return null;
-    }
+    React.useEffect(() => {
+        if (!authLoading && isAuthenticated && profile?.role === "admin") {
+            navigate("/app");
+        }
+    }, [isAuthenticated, authLoading, profile, navigate]);
 
     if (authLoading) {
         return (

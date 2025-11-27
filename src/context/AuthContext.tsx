@@ -13,36 +13,90 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const [user, setUser] = useState<any>(null);
+    const [profile, setProfile] = useState<any>(null);
     const [loading, setLoading] = useState(true);
 
-    // 🔥 Cargar sesión al iniciar la app
+    const fetchProfile = async (userId: string) => {
+        try {
+            const { data, error } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', userId)
+                .single();
+            
+            if (error) {
+                console.warn('Error fetching profile:', error.message);
+                return null;
+            }
+            return data;
+        } catch (err) {
+            console.error('Unexpected error fetching profile:', err);
+            return null;
+        }
+    };
+
     useEffect(() => {
-        const loadSession = async () => {
-            const { data } = await supabase.auth.getSession();
-            setUser(data.session?.user || null);
-            setLoading(false);
+        let mounted = true;
+
+        const initAuth = async () => {
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                const currentUser = session?.user || null;
+                
+                if (mounted) {
+                    setUser(currentUser);
+                    if (currentUser) {
+                        const userProfile = await fetchProfile(currentUser.id);
+                        setProfile(userProfile);
+                    } else {
+                        setProfile(null);
+                    }
+                }
+            } catch (error) {
+                console.error("Auth initialization error:", error);
+            } finally {
+                if (mounted) setLoading(false);
+            }
         };
 
-        loadSession();
+        initAuth();
 
-        // 🔥 Escuchar cambios de sesión (login, logout, refresh)
-        const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-            setUser(session?.user || null);
-            setLoading(false);
+        const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
+            const currentUser = session?.user || null;
+            if (mounted) {
+                // If session changes, we might need to show loading again if we want to be strict,
+                // but usually onAuthStateChange is fast. However, for role security, let's be safe.
+                if (currentUser?.id !== user?.id) {
+                     setLoading(true);
+                }
+                
+                setUser(currentUser);
+                if (currentUser) {
+                    const userProfile = await fetchProfile(currentUser.id);
+                    setProfile(userProfile);
+                } else {
+                    setProfile(null);
+                }
+                setLoading(false);
+            }
         });
 
-        return () => listener.subscription.unsubscribe();
+        return () => {
+            mounted = false;
+            listener.subscription.unsubscribe();
+        };
     }, []);
 
     const logout = async () => {
         await supabase.auth.signOut();
         setUser(null);
+        setProfile(null);
         localStorage.clear();
     };
 
     const value: AuthContextType = {
         user,
-        profile: user?.user_metadata || null,
+        profile,
         loading,
         isAuthenticated: !!user,
         logout,

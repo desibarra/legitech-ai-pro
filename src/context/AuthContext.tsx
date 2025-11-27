@@ -16,60 +16,60 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const [profile, setProfile] = useState<any>(null);
     const [loading, setLoading] = useState(true);
 
-    const fetchProfile = async (userId: string, email?: string, retries = 3): Promise<any> => {
-        console.log(`Fetching profile for: ${userId} (Attempts left: ${retries})`);
-        
+    const fetchOrCreateProfile = async (currentUser: any) => {
+        if (!currentUser) return null;
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 4000);
+
         try {
-            // Race the query against a 6s timeout to detect hanging
-            const queryPromise = supabase
+            // 1. Try to fetch existing profile
+            const { data: existingProfile, error: fetchError } = await supabase
                 .from('profiles')
                 .select('*')
-                .eq('id', userId)
-                .single();
-                
-            const timeoutPromise = new Promise((_, reject) => 
-                setTimeout(() => reject(new Error("Request timeout")), 6000)
-            );
+                .eq('id', currentUser.id)
+                .maybeSingle()
+                .abortSignal(controller.signal);
 
-            // @ts-ignore
-            const { data, error } = await Promise.race([queryPromise, timeoutPromise]);
-
-            if (error) {
-                // Handle "Row not found" (PGRST116) -> Create Profile
-                if (error.code === 'PGRST116' && email) {
-                    console.log("Profile missing, creating new profile...");
-                    const { data: newProfile, error: insertError } = await supabase
-                        .from('profiles')
-                        .insert({ 
-                            id: userId, 
-                            email: email, 
-                            role: 'user', 
-                            full_name: email.split('@')[0] 
-                        })
-                        .select()
-                        .single();
-                    
-                    if (insertError) throw insertError;
-                    return newProfile;
-                }
-                throw error;
+            if (fetchError) {
+                console.error("Error fetching profile:", fetchError.message);
+                return null;
             }
-            
-            console.log("Profile found:", data);
-            return data;
+
+            if (existingProfile) {
+                return existingProfile;
+            }
+
+            // 2. If no profile, create one
+            console.log("Profile missing, creating new user profile...");
+            const { data: newProfile, error: insertError } = await supabase
+                .from('profiles')
+                .insert({
+                    id: currentUser.id,
+                    email: currentUser.email,
+                    role: 'user',
+                    full_name: currentUser.email?.split('@')[0] || 'User'
+                })
+                .select()
+                .single()
+                .abortSignal(controller.signal);
+
+            if (insertError) {
+                console.error("Error creating profile:", insertError.message);
+                return null;
+            }
+
+            return newProfile;
 
         } catch (err: any) {
-            console.warn(`Profile fetch error (Attempt ${4 - retries}):`, err.message || err);
-
-            // Retry on timeout or network error
-            if (retries > 0) {
-                console.log("Retrying profile fetch...");
-                await new Promise(res => setTimeout(res, 1500));
-                return fetchProfile(userId, email, retries - 1);
+            if (err.name === 'AbortError') {
+                console.error("Profile fetch aborted due to timeout");
+            } else {
+                console.error("Unexpected error in profile handling:", err);
             }
-
-            console.error("All profile fetch attempts failed.");
             return null;
+        } finally {
+            clearTimeout(timeoutId);
         }
     };
 
@@ -78,21 +78,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
         const initAuth = async () => {
             try {
-                const { data: { session } } = await supabase.auth.getSession();
-                const currentUser = session?.user || null;
+                // Step 1: Get User
+                const { data: { user: currentUser }, error } = await supabase.auth.getUser();
                 
+                if (error) {
+                    console.warn("Error checking auth session:", error.message);
+                }
+
                 if (mounted) {
                     setUser(currentUser);
+                    
                     if (currentUser) {
-                        const userProfile = await fetchProfile(currentUser.id, currentUser.email);
+                        // Step 2-4: Fetch or Create Profile
+                        const userProfile = await fetchOrCreateProfile(currentUser);
                         if (mounted) setProfile(userProfile);
                     } else {
                         if (mounted) setProfile(null);
                     }
                 }
-            } catch (error) {
-                console.error("Auth initialization error:", error);
+            } catch (err) {
+                console.error("Auth initialization failed:", err);
             } finally {
+                // Step 5: Always release loading
                 if (mounted) setLoading(false);
             }
         };
@@ -101,19 +108,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
         const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
             const currentUser = session?.user || null;
+            
             if (mounted) {
-                if (currentUser?.id !== user?.id) {
-                     setLoading(true);
-                }
-                
                 setUser(currentUser);
+                
                 if (currentUser) {
-                    const userProfile = await fetchProfile(currentUser.id, currentUser.email);
+                    const userProfile = await fetchOrCreateProfile(currentUser);
                     if (mounted) setProfile(userProfile);
                 } else {
                     if (mounted) setProfile(null);
                 }
-                if (mounted) setLoading(false);
+                setLoading(false); 
             }
         });
 

@@ -22,48 +22,54 @@ interface MembershipContextType {
 const MembershipContext = createContext<MembershipContextType | undefined>(undefined);
 
 export const MembershipProvider = ({ children }: { children: React.ReactNode }) => {
-    const { user } = useAuth();
+    const { user, loading: authLoading } = useAuth();
     const [membership, setMembership] = useState<Membership | null>(null);
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
 
-    // 🔄 Obtener membresía desde Supabase
     const refreshMembership = async () => {
         if (!user) {
             setMembership(null);
+            setLoading(false);
             return;
         }
 
         setLoading(true);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 4000);
 
         try {
             const { data, error } = await supabase
                 .from("memberships")
                 .select("*")
                 .eq("user_id", user.id)
-                .maybeSingle();
+                .maybeSingle()
+                .abortSignal(controller.signal);
 
             if (error) {
-                console.error("Membership error:", error.message);
+                console.error("Membership fetch error:", error.message);
                 setMembership(null);
             } else {
                 setMembership(data);
             }
-        } catch (err) {
-            console.error("Unexpected membership error:", err);
+        } catch (err: any) {
+            if (err.name === 'AbortError') {
+                console.warn("Membership fetch aborted due to timeout");
+            } else {
+                console.error("Unexpected membership error:", err);
+            }
             setMembership(null);
         } finally {
+            clearTimeout(timeoutId);
             setLoading(false);
         }
     };
 
-    // 🚀 Activar membresía
     const activateMembership = async (type: string = "annual") => {
         if (!user) throw new Error("User not logged in.");
 
         setLoading(true);
 
         try {
-            // Crear o actualizar registro
             const { data, error } = await supabase
                 .from("memberships")
                 .upsert({
@@ -81,8 +87,7 @@ export const MembershipProvider = ({ children }: { children: React.ReactNode }) 
             setMembership(data);
         } catch (error: any) {
             console.error("Activate Membership Error:", error);
-            // Si el error es por duplicado (aunque upsert debería manejarlo), lo ignoramos si ya existe
-            if (error.code === '23505') { // unique_violation
+            if (error.code === '23505') { 
                  await refreshMembership();
             } else {
                 throw error;
@@ -92,10 +97,11 @@ export const MembershipProvider = ({ children }: { children: React.ReactNode }) 
         }
     };
 
-    // Refrescar cuando el usuario cambie
     useEffect(() => {
-        refreshMembership();
-    }, [user]);
+        if (!authLoading) {
+            refreshMembership();
+        }
+    }, [user, authLoading]);
 
     return (
         <MembershipContext.Provider

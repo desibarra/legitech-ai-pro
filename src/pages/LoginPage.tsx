@@ -1,9 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
+import { useAuth } from "../context/AuthContext";
 
 const LoginPage: React.FC = () => {
     const navigate = useNavigate();
+    const { isAuthenticated, loading: authLoading } = useAuth();
 
     const [formData, setFormData] = useState({
         email: "",
@@ -12,6 +14,13 @@ const LoginPage: React.FC = () => {
 
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
+
+    // Redirect if already authenticated and not loading
+    useEffect(() => {
+        if (isAuthenticated && !authLoading) {
+            navigate("/app");
+        }
+    }, [isAuthenticated, authLoading, navigate]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setFormData((prev) => ({
@@ -34,11 +43,14 @@ const LoginPage: React.FC = () => {
             if (loginError) throw loginError;
             if (!data.session) throw new Error("No se pudo iniciar sesión");
 
-            // Guardar token y usuario
+            // Force session refresh to ensure AuthContext picks it up
+            await supabase.auth.refreshSession();
+
+            // Guardar token y usuario (opcional, ya que AuthContext lo maneja)
             localStorage.setItem("token", data.session.access_token);
             localStorage.setItem("user", JSON.stringify(data.user));
 
-            navigate("/app");
+            // Navigation is handled by the useEffect above when auth state updates
         } catch (err: any) {
             console.error("Login Error:", err);
             let msg = err.message || "Credenciales inválidas";
@@ -48,8 +60,7 @@ const LoginPage: React.FC = () => {
             }
             
             setError(msg);
-        } finally {
-            setLoading(false);
+            setLoading(false); // Only stop loading on error, success waits for redirect
         }
     };
 

@@ -17,6 +17,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const [loading, setLoading] = useState(true);
 
     const fetchProfile = async (userId: string) => {
+        console.log("Fetching profile for:", userId);
         try {
             const { data, error } = await supabase
                 .from('profiles')
@@ -28,6 +29,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 console.warn('Error fetching profile:', error.message);
                 return null;
             }
+            console.log("Profile found:", data);
             return data;
         } catch (err) {
             console.error('Unexpected error fetching profile:', err);
@@ -47,9 +49,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                     setUser(currentUser);
                     if (currentUser) {
                         const userProfile = await fetchProfile(currentUser.id);
-                        setProfile(userProfile);
+                        if (mounted) setProfile(userProfile);
                     } else {
-                        setProfile(null);
+                        if (mounted) setProfile(null);
                     }
                 }
             } catch (error) {
@@ -73,11 +75,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 setUser(currentUser);
                 if (currentUser) {
                     const userProfile = await fetchProfile(currentUser.id);
-                    setProfile(userProfile);
+                    if (mounted) setProfile(userProfile);
                 } else {
-                    setProfile(null);
+                    if (mounted) setProfile(null);
                 }
-                setLoading(false);
+                if (mounted) setLoading(false);
             }
         });
 

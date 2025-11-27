@@ -5,6 +5,7 @@ interface AuthContextType {
     user: any;
     profile: any;
     loading: boolean;
+    authLoading: boolean;
     isAuthenticated: boolean;
     logout: () => Promise<void>;
 }
@@ -139,6 +140,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         user,
         profile,
         loading,
+        authLoading: loading,
         isAuthenticated: !!user,
         logout,
     };

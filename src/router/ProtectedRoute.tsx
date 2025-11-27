@@ -1,43 +1,31 @@
-import React from 'react';
-import { Navigate, Outlet } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { useMembership } from '../context/MembershipContext';
+import { Navigate, Outlet } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
+import { useMembership } from "@/context/MembershipContext";
+import LoadingSpinner from "@/components/LoadingSpinner";
 
 const ProtectedRoute = () => {
-    const { isAuthenticated, profile, loading: authLoading } = useAuth();
-    const { isMember, loading: membershipLoading } = useMembership();
+  const { isAuthenticated, authLoading, profile } = useAuth();
+  const { membership, membershipLoading } = useMembership();
 
-    if (authLoading) {
-        return (
-            <div className="flex items-center justify-center min-h-screen bg-slate-900">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-legitech-accent"></div>
-            </div>
-        );
-    }
+  // 1) Esperando autenticación
+  if (authLoading) return <LoadingSpinner />;
 
-    if (!isAuthenticated) {
-        return <Navigate to="/login" replace />;
-    }
+  // 2) No autenticado → login
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
 
-    // PRIORIDAD 1: ADMIN
-    if (profile?.role === "admin") {
-        return <Outlet />;
-    }
-
-    // PRIORIDAD 2: USUARIO NORMAL
-    if (membershipLoading) {
-        return (
-            <div className="flex items-center justify-center min-h-screen bg-slate-900">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-legitech-accent"></div>
-            </div>
-        );
-    }
-
-    if (!isMember) {
-        return <Navigate to="/pricing" replace />;
-    }
-
+  // 3) ADMIN → entrada inmediata sin esperar membresía
+  if (profile?.role === "admin") {
     return <Outlet />;
+  }
+
+  // 4) Usuarios normales: esperar membresía
+  if (membershipLoading) return <LoadingSpinner />;
+
+  // 5) Sin membresía → pricing
+  if (!membership) return <Navigate to="/pricing" replace />;
+
+  // 6) Acceso permitido
+  return <Outlet />;
 };
 
 export default ProtectedRoute;

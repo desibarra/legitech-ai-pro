@@ -15,6 +15,7 @@ interface MembershipContextType {
     membership: Membership | null;
     isMember: boolean;
     loading: boolean;
+    membershipLoading: boolean;
     refreshMembership: () => Promise<void>;
     activateMembership: (type?: string) => Promise<void>;
 }
@@ -101,6 +102,7 @@ export const MembershipProvider = ({ children }: { children: React.ReactNode }) 
                 membership,
                 isMember: !!membership && membership.status === "active",
                 loading,
+                membershipLoading: loading,
                 refreshMembership,
                 activateMembership
             }}
